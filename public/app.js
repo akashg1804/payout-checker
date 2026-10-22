@@ -87,11 +87,11 @@ function makeSample(variant = 'base') {
   return { rows, breakup, coupons, adjustments, platform: 'Swiggy' };
 }
 function makeZomatoSample(variant = 'base') {
-  return {
-    platform: 'Zomato', delivered: 60, sales: 17200, discount: 910, placed: 63, offerOrders: 30, offerSales: 8900, swapped: false,
+  const out = { platform: 'Zomato', delivered: 60, sales: 17200, discount: 910, placed: 63, offerOrders: 30, offerSales: 8900, swapped: false,
     adsSales: 14800, adsSpend: 340, impressions: 11000, adsImpressions: 8800, menuOpens: 800, cartBuilds: 150, newU: 30, repeatU: 26, lapsedU: 7,
-    parts: { breakfast: 1, lunch: 12, snacks: 4, dinner: 26, late: 20 }, rating: 4.4, ratedOrders: 9, offlineHrs: 90, lostSales: 400
-  };
+    parts: { breakfast: 1, lunch: 12, snacks: 4, dinner: 26, late: 20 }, rating: 4.4, ratedOrders: 9, offlineHrs: 90, lostSales: 400 };
+  if (variant !== 'base') { const factor = variant === 'strong' ? 1.22 : 0.78; ['sales','discount','offerSales','adsSales','adsSpend','lostSales'].forEach(k => { out[k] = Math.round(out[k] * factor); }); ['delivered','placed','offerOrders','impressions','adsImpressions','menuOpens','cartBuilds','newU','repeatU','lapsedU'].forEach(k => { out[k] = Math.max(1, Math.round(out[k] * factor)); }); }
+  return out;
 }
 
 // ---------- loading files ----------
@@ -396,6 +396,7 @@ $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
+
 
 
 
