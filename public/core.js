@@ -436,7 +436,7 @@ function advise(A, Z, d, inp) {
   const W = perWeek(A.nDelivered);
   const out = {};
   out.lead = {
-    head: 'You keep about ₹' + p1(A.keptPct) + ' of every ₹100 you sell on Swiggy.',
+    head: 'You keep ₹' + p1(A.keptPct) + ' of every ₹100 sold on Swiggy.',
     basis: Z && d.z ? 'Zomato estimate: about ₹' + p0(d.z.keptPct) + ' of every ₹100 at the ' + inp.comm + '% commission you entered, before gateway fees and TDS.' : ''
   };
 

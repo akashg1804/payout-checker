@@ -148,13 +148,20 @@ function render(){
   const d=decide(A,Z,inp); const adv=ADV=advise(A,Z,d,inp);
   const segs=A.buckets.filter(b=>b.amt>.005&&b.pct>0);
   const stack=el('div',{class:'money-bar'},...segs.map(b=>el('i',{class:'k-'+b.key,style:'flex-grow:'+b.pct,title:b.label})));
+  // Keep the current result available to the separate actions page without storing order rows.
+  localStorage.setItem('after_current', JSON.stringify({
+    from:A.from,to:A.to,keptPct:A.keptPct,gross:A.gross,kept:A.kept,orders:A.nDelivered,
+    couponShare:A.ins.coupon.share, parts:A.ins.parts.slice(0,6).map(x=>({label:x.label,n:x.n,share:x.share})),
+    swiggyPer:d.swPer, zomatoPer:Z&&d.z?d.z.per:null, commission:inp.comm, decision:adv.d1.do||adv.d1.head,
+    couponHead:adv.d1.head, platformHead:adv.d2.head, timingHead:adv.d3.head
+  }));
   root.append(el('section',{class:'result-hero'},
     el('div',{class:'eyebrow'},'YOUR PAYOUT · '+A.from+' → '+A.to),
     el('h1',{},adv.lead.head),
     el('p',{class:'result-sub'},plural(A.nDelivered,'delivered order','delivered orders')+' · sales '+inr0(A.gross)+' · payout '+inr(A.kept)),
-    el('div',{class:'keep-number'},el('span',{},'You keep'),el('strong',{},pct1(A.keptPct)+'%'),el('span',{},'of every ₹100 sold')),
+    el('div',{class:'breakup-head'},el('div',{class:'eyebrow'},'BREAKUP · WHERE THE MONEY WENT'),el('p',{},'This is the payout in one line: what you kept, and everything deducted before it reached you.')),
     stack,
-    el('p',{class:'bar-caption'},'The bar shows where the other '+pct1(100-A.keptPct)+'% went: discounts, fees, taxes and other deductions.'),
+    el('div',{class:'bar-legend'},...segs.map(b=>el('div',{class:'legend-item'},el('i',{class:'legend-swatch k-'+b.key}),el('span',{},b.label+' · '+pct1(b.pct)+'%')))),
     isSample?el('div',{class:'demo-pill'},'DEMO MODE · made-up numbers'):null,
     el('div',{class:'ai-status',id:'aiStatus'},'Verified from the numbers in your payout.')
   ));
@@ -163,7 +170,7 @@ function render(){
   const d2body=el('div',{},Z?metric('Swiggy / order',inr0(d.swPer),true):metric('Zomato report','Not added'),Z?metric('Zomato / order','~'+inr0(d.z.per)+' estimate',true):null,Z?metric('Commission used',inp.comm+'% · your input'):null,Z&&d.z.cStar!=null?metric('Break-even commission',pct0(d.z.cStar)+'%'):null);
   const d3body=el('div',{},...A.ins.parts.slice(0,5).map(p=>metric(p.label,p.n+' orders · '+pct0(p.share)+'%')));
   root.append(el('section',{class:'cards-section'},el('div',{class:'section-head'},el('div',{class:'eyebrow'},'READ THE PAYOUT'),el('h2',{},'Three things worth knowing.')),el('div',{class:'card-grid'},card(1,'COUPONS',adv.d1.head,'Is the discount actually earning its keep?',d1body),card(2,'PLATFORMS',Z?adv.d2.head:'Compare the two apps','Which platform leaves more after the costs?',d2body),card(3,'TIMING',adv.d3.head,'When is demand strongest?',d3body))));
-  root.append(el('section',{class:'action-section'},el('div',{class:'section-head'},el('div',{class:'eyebrow'},'WHAT TO DO NEXT'),el('h2',{},'One test. Three guardrails.'),el('p',{},'You do not need to understand every column to make the next move.')),el('div',{class:'action-card'},adviceBlock(adv.d1))));
+  root.append(el('section',{class:'action-section'},el('div',{class:'section-head'},el('div',{class:'eyebrow'},'NEXT · ACTIONS'),el('h2',{},'Now decide what to test.'),el('p',{},'The breakdown stays here. The deeper recommendations live on their own page so this screen stays easy to scan.')),el('a',{class:'button',href:'/actions.html'},'See what to do →')));
   const history=JSON.parse(localStorage.getItem('after_payouts')||'[]');
   const saveBtn=el('button',{class:'button',type:'button',onclick:()=>{const rec={id:Date.now(),saved:new Date().toISOString(),from:A.from,to:A.to,keptPct:A.keptPct,gross:A.gross,kept:A.kept,orders:A.nDelivered,couponShare:A.ins.coupon.share,decision:adv.d1.do||adv.d1.head};const next=[rec,...history.filter(x=>x.from!==rec.from||x.to!==rec.to)].slice(0,12);localStorage.setItem('after_payouts',JSON.stringify(next));saveBtn.textContent='Saved ✓';saveBtn.disabled=true;}},'Save this payout');
   root.append(el('section',{class:'memory-section'},el('div',{class:'memory-copy'},el('div',{class:'eyebrow'},'THE MEMORY LOOP'),el('h2',{},'The next payout should answer what happened last time.'),el('p',{},'Save this result. On the next run, the prototype can compare the period and decision in this browser. No order rows are stored.')),el('div',{class:'memory-actions'},saveBtn,el('a',{class:'button ghost',href:'/insights.html'},'Open payout memory →'))));

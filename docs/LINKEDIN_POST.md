@@ -1,4 +1,4 @@
-I built AFTER. because restaurant owners don't have a revenue problem — they have a visibility problem.
+I built AFTER. because restaurant owners don't need another dashboard. They need to know what to change before the next payout.
 
 A delivery-platform payout statement can contain dozens of columns: commissions, coupons, fees, taxes, adjustments, ads and order-level data.
 
@@ -21,6 +21,8 @@ The prototype currently:
 • uses AI for explanation, not for the underlying maths
 
 The idea is simple: **less dashboard. More decision.**
+
+The interesting part is the loop: the next payout tells you whether the last decision actually worked.
 
 This is an early proof of concept, not a finished product. The next step is a real database-backed history so every payout makes the recommendation smarter and more useful over time.
 

@@ -22,12 +22,12 @@ The prototype reads the Swiggy payout and optional Zomato business report in the
 - **Frontend:** HTML, CSS, JavaScript
 - **Spreadsheet parsing:** SheetJS (`xlsx`) in the browser
 - **Decision logic:** deterministic JavaScript in `public/core.js`
-- **AI:** optional Claude endpoint in `api/claude.js` for rewording advice and drafting support messages
+- **AI:** optional AI endpoint in `api/claude.js` for rewording advice and drafting support messages
 - **Memory:** browser `localStorage` for the prototype
 - **Deployment:** Vercel
 
 ## Why AI is used
-AI is deliberately not responsible for arithmetic. The app calculates the numbers in code first. Claude is used for language: making the conclusions easier to understand and drafting a support message. A number checker rejects AI wording if it introduces unsupported numbers.
+AI is deliberately not responsible for arithmetic. The app calculates the numbers in code first. the AI model is used for language: making the conclusions easier to understand and drafting a support message. A number checker rejects AI wording if it introduces unsupported numbers.
 
 ## Proof of concept
 The current prototype demonstrates the complete core loop with sample/real payout files: parse → calculate → explain → recommend → save → compare on the next payout.
