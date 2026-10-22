@@ -3,9 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 global.XLSX = require('xlsx');
-const NAMES = ['parseWorkbook', 'analyze', 'parseZomato', 'parseZomatoCsv', 'decide', 'advise', 'phrasePayload', 'PHRASE_FIELDS', 'numbersIn', 'checkText',
-  'memStore', 'memSnapshot', 'memValid', 'memLoad', 'memSave', 'memClear', 'memPrevious', 'memCompare', 'memVerdict', 'MEM_KEY'];
+const NAMES = ['parseWorkbook', 'analyze', 'parseZomato', 'parseZomatoCsv', 'decide', 'advise', 'phrasePayload', 'PHRASE_FIELDS', 'numbersIn', 'checkText'];
 const ctx = vm.createContext({ XLSX: global.XLSX, console });
-const read = f => fs.readFileSync(path.join(__dirname, '..', 'public', f), 'utf8');
-module.exports = vm.runInContext(read('core.js') + '\n' + read('memory.js') +
+module.exports = vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'core.js'), 'utf8') +
   '\n;({' + NAMES.join(',') + '})', ctx, { filename: 'core.js' });

@@ -11,8 +11,14 @@
 <body>
 <header class="appbar">
   <a class="mark" href="/">Payout Checker</a>
-  <nav><a href="/">How it works</a></nav>
+  <nav>
+    <label class="lg"><span class="lgt">Advice in</span>
+      <select id="lang" aria-label="Language for the advice"><option value="English">English</option><option value="Hindi">हिन्दी</option><option value="Kannada">ಕನ್ನಡ</option></select>
+    </label>
+    <a href="/">How it works</a>
+  </nav>
 </header>
+<div class="demobar" id="demobar" hidden></div>
 <section class="apphead">
   <h1>Add your payout</h1>
   <p class="intro">Your files are read in this browser and are not uploaded. Not ready with your own? Run the demo with two made-up payouts.</p>

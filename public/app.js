@@ -15,7 +15,7 @@ const pct1 = x => (Math.round(x * 10) / 10).toString();
 const pct0 = x => Math.round(x).toString();
 const plural = (n, a, b) => n + ' ' + (n === 1 ? a : b);
 
-let A = null, D = null, Z = null, isSample = false, demoStep = 0, ADV = null, lang = 'English';
+let A = null, D = null, Z = null, isSample = false, ADV = null, lang = 'English';
 const inp = { fc: 35, comm: 20 };
 const LANG_NAMES = { English: 'English', Hindi: 'हिन्दी', Kannada: 'ಕನ್ನಡ' };
 const LABELS = {
@@ -40,17 +40,15 @@ const Z_ERR = {
 const errText = (map, x, dflt) => (map[x && x.code] ? map[x.code](x.detail) : dflt) + ' Nothing was calculated from it.';
 
 // ---------- made-up sample data (clearly labelled) ----------
-// Two samples make a pair: Month A has deep coupons; Month B halves them. Neither is real.
-function makeSample(o = {}) {
-  const month = o.month || '08', discRate = o.disc == null ? 0.25 : o.disc, maxDisc = o.max == null ? 60 : o.max;
-  const items = [249, 289, 149, 349, 199, 449, 179, 299, 249, 399, 149, 229, 329, 189].concat(o.extra ? [289, 249, 329, 199].slice(0, o.extra) : []);
+function makeSample() {
+  const items = [249, 289, 149, 349, 199, 449, 179, 299, 249, 399, 149, 229, 329, 189];
   const hours = [20, 21, 0, 22, 13, 19, 23, 20, 1, 21, 12, 22, 19, 20];
   const days = [4, 5, 6, 8, 10, 11, 13, 14, 17, 18, 20, 22, 24, 26, 27];
   const kms = [3.1, 4.7, 2.8, 5.2, 3.6, 4.1, 6.3, 3.3, 4.9, 2.9, 3.8, 4.4, 5.6, 3.0];
   const rows = [];
   const mk = (i, item, pack, coupon, rate, commOverride, status, cancelledBy) => {
     const delivered = status === 'delivered';
-    const share = delivered && coupon ? Math.min(Math.round(item * discRate * 100) / 100, maxDisc) : 0;
+    const share = delivered && coupon ? Math.min(Math.round(item * 0.2 * 100) / 100, 50) : 0;
     const net = delivered ? item + pack - share : 0;
     const gst = delivered ? net * 0.05 : 0;
     const comm = delivered ? (commOverride != null ? commOverride : (net * rate) / 100) : 0;
@@ -63,7 +61,7 @@ function makeSample(o = {}) {
     const payable = net + gst;
     const hh = String(hours[(i - 1) % hours.length]).padStart(2, '0');
     return {
-      id: '99000000' + String(i).padStart(7, '0'), date: '2026-' + month + '-' + String(days[(i - 1) % days.length]).padStart(2, '0') + ' ' + hh + ':10:00', status, cancelledBy: cancelledBy || '', coupon: delivered ? coupon : '',
+      id: '99000000' + String(i).padStart(7, '0'), date: '2026-08-' + String(days[(i - 1) % days.length]).padStart(2, '0') + ' ' + hh + ':10:00', status, cancelledBy: cancelledBy || '', coupon: delivered ? coupon : '',
       item: delivered ? item : 0, pack: delivered ? pack : 0, share, net, gst, paid: payable, payable, base: net, rate, comm, longDist: 0, pocket: 0, one: 0, pcc, canc, call: 0, sponsored: 0, bolt: 0,
       gstFee, totalFees, complaint: 0, gstDed: gst, tcs: 0, tds, taxes, netPayout: payable - totalFees - taxes, hasNet: true, hasRate: true, hasPayable: true,
       km: delivered ? kms[(i - 1) % kms.length] : 0, swOne: i % 5 === 0 ? 'no' : 'yes', pay: i % 7 === 0 ? 'cash' : 'upiintent', mfrAcc: i % 3 === 0 ? 'no' : 'yes', mfrPress: 'no'
@@ -71,14 +69,14 @@ function makeSample(o = {}) {
   };
   items.forEach((it, i) => {
     const coupon = (i % 3 === 0 || it === 149) ? 'WELCOME20' : '';
-    rows.push(mk(i + 1, it, 10, coupon, 24, (!o.clean && i === 5) ? ((it + 10) * 0.26) : null, 'delivered'));
+    rows.push(mk(i + 1, it, 10, coupon, 24, i === 5 ? ((it + 10) * 0.26) : null, 'delivered'));
   });
-  rows.push(mk(30, 0, 0, '', 24, null, 'cancelled', 'RESTAURANT'));
+  rows.push(mk(20, 0, 0, '', 24, null, 'cancelled', 'RESTAURANT'));
   const breakup = { 'net payout': rows.reduce((s, r) => s + r.netPayout, 0), 'total customer paid': rows.reduce((s, r) => s + r.paid, 0) };
-  const coupons = [{ code: 'WELCOME20', share: 100, orders: 0, discount: 0, threshold: 149, text: 'Use code WELCOME20 & get ' + Math.round(discRate * 100) + '% off on orders above \u20B9149. Maximum discount: \u20B9' + maxDisc + '.' }];
-  const adjustments = o.clean ? [] : [
-    { kind: 'ad', type: 'Ads investment', start: '2026-' + month + '-05', end: '2026-' + month + '-12', total: 690, invoice: 'SAMPLE-INV-1', remarks: '' },
-    { kind: 'ad', type: 'Ads investment', start: '2026-' + month + '-05', end: '2026-' + month + '-12', total: 690, invoice: 'SAMPLE-INV-2', remarks: '' }
+  const coupons = [{ code: 'WELCOME20', share: 100, orders: 0, discount: 0, threshold: 149, text: 'Use code WELCOME20 & get 20% off on orders above \u20B9149. Maximum discount: \u20B950.' }];
+  const adjustments = [
+    { kind: 'ad', type: 'Ads investment', start: '2026-08-05', end: '2026-08-12', total: 690, invoice: 'SAMPLE-INV-1', remarks: '' },
+    { kind: 'ad', type: 'Ads investment', start: '2026-08-05', end: '2026-08-12', total: 690, invoice: 'SAMPLE-INV-2', remarks: '' }
   ];
   return { rows, breakup, coupons, adjustments, platform: 'Swiggy' };
 }
@@ -100,9 +98,7 @@ function handleSwiggy(file) {
   reader.onload = e => {
     try {
       const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-      D = parseWorkbook(wb); A = analyze(D);
-      if (isSample) { Z = null; setStatus('#zStatus', 'Not added yet', false); }
-      isSample = false; demoStep = 0;
+      D = parseWorkbook(wb); A = analyze(D); isSample = false;
       setStatus('#swStatus', 'Read ' + plural(A.nDelivered, 'delivered order', 'delivered orders') + ', ' + A.from + ' to ' + A.to, true);
       render();
     } catch (x) {
@@ -122,9 +118,7 @@ function handleZomato(file) {
     try {
       const bytes = new Uint8Array(e.target.result);
       const isExcel = (bytes[0] === 0x50 && bytes[1] === 0x4B) || (bytes[0] === 0xD0 && bytes[1] === 0xCF); // .xlsx or old .xls
-      Z = isExcel ? parseZomato(XLSX.read(bytes, { type: 'array' })) : parseZomatoCsv(new TextDecoder().decode(bytes));
-      if (isSample) { A = null; D = null; setStatus('#swStatus', 'Not added yet', false); }
-      isSample = false; demoStep = 0;
+      Z = isExcel ? parseZomato(XLSX.read(bytes, { type: 'array' })) : parseZomatoCsv(new TextDecoder().decode(bytes)); isSample = false;
       setStatus('#zStatus', 'Read ' + plural(Z.delivered, 'delivered order', 'delivered orders') + (Z.swapped ? '. Two labels looked swapped, so I read them by checking the maths.' : ''), true);
       render();
     } catch (x) {
@@ -136,369 +130,73 @@ function handleZomato(file) {
   reader.readAsArrayBuffer(file);
 }
 
-// ---------- small building blocks ----------
-const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const ymd = s => { const p = s.split('-').map(Number); return { y: p[0], m: p[1], d: p[2] }; };
-const periodLabel = s => {
-  const a = ymd(s.from), b = ymd(s.to);
-  if (a.y === b.y && a.m === b.m) return (a.d === 1 && b.d >= 28) ? MON[a.m - 1] + ' ' + a.y : a.d + '–' + b.d + ' ' + MON[a.m - 1] + ' ' + a.y;
-  return a.d + ' ' + MON[a.m - 1] + ' to ' + b.d + ' ' + MON[b.m - 1] + ' ' + b.y;
+// ---------- compact decision UI ----------
+const note = (t, cls='') => el('p', {class:'note '+cls}, t);
+const metric = (label,value,emphasis=false) => el('div',{class:'metric-row'},el('span',{},label),el('strong',{class:emphasis?'em':''},value));
+const card = (num, kicker, title, sub, body) => {
+  const details=el('details',{class:'info-card'});
+  details.append(el('summary',{},el('div',{class:'card-num'},'0'+num+' · '+kicker),el('h2',{},title),el('p',{},sub),el('span',{class:'open'},'Open →')));
+  details.append(el('div',{class:'card-body'},body));
+  return details;
 };
-const bar = (pct, cls) => el('span', { class: 'mbar' }, el('i', { class: cls || '', style: 'width:' + Math.max(1, Math.min(100, pct)) + '%' }));
-const kv = (rows, head) => el('div', { class: 'scroll' }, el('table', { class: 'lt' },
-  head ? el('thead', {}, el('tr', {}, head.map((h, i) => el('th', { class: i ? 'n' : '' }, h)))) : null,
-  el('tbody', {}, rows.map(r => el('tr', {}, r.map((c, i) => el('td', { class: i ? 'n' : '' }, c)))))));
-const section = (id, block, area, headline, ...rest) => el('section', { class: 'dec', id, 'data-block': block },
-  el('p', { class: 'area' }, area), el('h3', { class: 'hl', 'data-f': 'head' }, headline), rest);
-const note = (t, cls) => el('p', { class: 'note ' + (cls || '') }, t);
-const why = (...kids) => el('details', { class: 'why' }, el('summary', {}, 'Show the numbers'), kids);
-// Do / Measure / Stop if, picked by advise() in core.js. AI model may re-word it later (phraseBoard).
-const adviceBlock = a => el('div', { class: 'advice' },
-  el('dl', {}, ['do', 'measure', 'stop'].filter(f => a[f]).flatMap(f => [el('dt', { 'data-l': f }, LABELS.English[f]), el('dd', { 'data-f': f }, a[f])])),
-  a.basis ? el('p', { class: 'basis', 'data-f': 'basis' }, a.basis) : null,
-  el('p', { class: 'ainote', 'aria-live': 'polite' }));
+const adviceBlock = a => el('div',{class:'advice'},el('div',{class:'advice-item'},el('span',{},'DO'),el('strong',{},a.do||'No change needed.')),el('div',{class:'advice-item'},el('span',{},'MEASURE'),el('strong',{},a.measure||'Track the result.')),el('div',{class:'advice-item'},el('span',{},'STOP IF'),el('strong',{},a.stop||'The test fails.')),a.basis?el('p',{class:'basis'},a.basis):null);
 
-// ---------- payout memory ----------
-// History lives in this browser only (localStorage). The sample demo uses a separate store that lives in this tab.
-const REAL_STORE = (() => { try { const s = window.localStorage; s.setItem('__pc', '1'); s.removeItem('__pc'); return s; } catch (e) { return null; } })();
-let SAMPLE_STORE = null, curSnap = null, autoCollapsed = false, scrolled = false;
-const activeStore = () => (isSample ? SAMPLE_STORE : REAL_STORE);
-const syncLayout = () => { $('#layout').hidden = $('#rail').hidden && $('#board').hidden; };
-
-function saveCurrent() {
-  const st = activeStore();
-  if (!st || !curSnap) return;
-  try { memSave(st, curSnap); } catch (e) { $('#err').textContent = 'Couldn’t save in this browser, so history is off.'; return; }
-  render();
-}
-function wipeHistory() {
-  const st = activeStore();
-  if (!st) return;
-  if (!isSample && !window.confirm('Delete every saved payout from this device?')) return;
-  memClear(st);
-  if (A) render(); else renderRail([], null, false);
-}
-function renderRail(list, cur, saved) {
-  const rail = $('#rail'), st = activeStore();
-  if (!list.length && !cur) { rail.hidden = true; rail.replaceChildren(); syncLayout(); return; }
-  rail.hidden = false; rail.replaceChildren();
-  const entries = list.map(s => ({ s, now: !!cur && s.id === cur.id, unsaved: false }));
-  if (cur && !saved) entries.push({ s: cur, now: true, unsaved: true });
-  entries.sort((a, b) => (a.s.from < b.s.from ? -1 : 1));
-  const ol = el('ol', {});
-  entries.forEach(e => ol.append(el('li', { class: (e.now ? 'now ' : '') + (e.unsaved ? 'unsaved' : '') },
-    el('div', { class: 'rp' }, periodLabel(e.s), e.now ? el('span', { class: 'tag' }, e.unsaved ? 'This one, not saved' : 'This one') : null),
-    el('div', { class: 'rbar' }, el('i', { style: 'width:' + Math.max(2, Math.min(100, e.s.keptPct)) + '%' })),
-    el('div', { class: 'rk' }, '₹' + pct0(e.s.keptPct) + ' of every ₹100 kept'),
-    el('div', { class: 'rk' }, inr0(e.s.net) + ' paid out'))));
-  const noteText = isSample ? 'Sample history. It lives in this tab only and is never saved to your device.'
-    : !st ? 'This browser can’t keep history (private mode, or storage is blocked).'
-    : list.length ? 'Saved on this device. Only totals and dates are kept, never order details.' : 'Nothing saved yet.';
-  const btns = el('div', { class: 'rbtns' },
-    cur && !saved && st ? el('button', { class: 'btn small', type: 'button', onclick: saveCurrent }, 'Save this payout') : null,
-    st && list.length ? el('button', { class: 'linkbtn', type: 'button', onclick: wipeHistory }, isSample ? 'Clear sample history' : 'Delete my history') : null,
-    !cur && list.length ? el('p', { class: 'rnote' }, 'Add your next statement above to see what changed.') : null);
-  rail.append(el('h2', {}, 'Your payouts'), el('p', { class: 'rnote' }, noteText), ol, btns);
-  syncLayout();
-}
-
-const fmtCell = (r, v) => (r.kind === 'money' ? inr0(v) : r.kind === 'count' ? String(Math.round(v)) : '₹' + pct1(v));
-const chgText = r => (r.kind === 'pp' ? (r.delta >= 0 ? '+' : '−') + pct1(Math.abs(r.delta)) + ' points'
-  : r.change == null ? '' : (r.change >= 0 ? '+' : '−') + Math.round(Math.abs(r.change)) + '%');
-function memorySection(prev, cur, saved) {
-  const st = activeStore();
-  if (!prev) {
-    return el('section', { class: 'mem baseline' }, el('h3', {}, 'Your starting point'),
-      el('p', {}, saved ? 'This payout is saved. When your next statement arrives, add it and this page will show what changed.'
-        : 'This is the first payout we can see. ' + (st ? 'Save it on this device, and when your next statement arrives this page will show what changed and whether your last decision worked.' : 'This browser can’t keep history, so there is nothing to compare next time.')),
-      !saved && st ? el('button', { class: 'btn', type: 'button', onclick: saveCurrent }, 'Save this payout') : null);
-  }
-  const cmp = memCompare(prev, cur), v = memVerdict(prev, cur);
-  const head = ['', periodLabel(prev), periodLabel(cur), 'Change'];
-  const body = el('tbody', {}, cmp.rows.map(r => el('tr', { class: r.significant ? 'sig' : '' },
-    el('td', {}, r.label), el('td', { class: 'old' }, fmtCell(r, r.prev)), el('td', {}, fmtCell(r, r.cur)),
-    el('td', { class: 'chg ' + (r.good === true ? 'good' : r.good === false ? 'bad' : 'flat') }, chgText(r)))));
-  const sec = el('section', { class: 'mem', id: 'mem-changed' }, el('h3', {}, 'What changed since ' + periodLabel(prev)),
-    el('p', { class: 'said' }, cmp.sentence),
-    el('div', { class: 'scroll' }, el('table', { class: 'ledger' }, el('thead', {}, el('tr', {}, head.map(h => el('th', {}, h)))), body)),
-    cmp.comparable ? null : note('These statements cover ' + cmp.prevDays + ' and ' + cmp.curDays + ' days, so totals are shown per week.'));
-  if (v) {
-    sec.append(el('div', { class: 'verdict', id: 'mem-verdict' },
-      el('h4', {}, 'Did it work? Last time we suggested ' + v.asked + ' the coupon.'),
-      v.state === 'resolved' ? el('p', { class: 'res' }, v.result === 'worked' ? 'It looks like it worked.' : 'Orders fell more than we said to watch for.') : null,
-      el('p', {}, v.text),
-      note('Other things changed too, so treat this as a signal, not proof.')));
-  }
-  if (!saved && st) sec.append(el('div', { class: 'row' }, el('button', { class: 'btn', type: 'button', onclick: saveCurrent }, 'Save this payout'), el('span', { class: 'ainote' }, 'So next time can be compared with this one.')));
-  return sec;
-}
-
-// ---------- the board ----------
-function render() {
-  const root = $('#board'); root.replaceChildren();
-  if (!A) {
-    root.hidden = !Z; if (Z) root.append(note('Add the Swiggy payout statement too. The comparison needs both.'));
-    const st = activeStore(); renderRail(st && !isSample ? memLoad(st) : [], null, false); syncLayout(); return;
-  }
-  root.hidden = false;
-  const d = decide(A, Z, inp);
-  const adv = ADV = advise(A, Z, d, inp);
-
-  // memory: previous payout, saved or not
-  curSnap = memSnapshot(A, d);
-  const st = activeStore();
-  let list = st ? memLoad(st) : [];
-  const prev = memPrevious(list, curSnap);
-  let saved = list.some(s => s.id === curSnap.id);
-  if (isSample && st && !saved) { memSave(st, curSnap); list = memLoad(st); saved = true; }
-  renderRail(list, curSnap, saved);
-
-  // the setup panel folds away once there is something to read
-  $('#setupHint').textContent = 'Swiggy ' + periodLabel(curSnap) + (Z ? ', Zomato added' : '') + '. Food cost ' + inp.fc + '%, commission ' + inp.comm + '%. Tap to change.';
-  if (!autoCollapsed) { $('#setup').open = false; autoCollapsed = true; }
-
-  const guide = demoBanner(); if (guide) root.append(guide);
-  const langSel = el('select', { id: 'lang', 'aria-label': 'Language', onchange: e => { lang = e.target.value; phraseBoard(); } },
-    Object.keys(LANG_NAMES).map(k => el('option', { value: k, selected: k === lang ? '' : null }, LANG_NAMES[k])));
-  root.append(el('div', { class: 'langbar' }, el('label', { for: 'lang' }, 'Advice in'), langSel, el('span', { id: 'aiStatus', class: 'aistatus', 'aria-live': 'polite' })));
-
-  // lead
-  const segs = A.buckets.filter(b => b.amt > 0.005 && b.pct > 0);
-  const stack = el('div', { class: 'stack', role: 'img', 'aria-label': 'Where each ₹100 of Swiggy sales went: ' + segs.map(b => b.label + ' ₹' + pct1(b.pct)).join(', ') });
-  segs.forEach(b => stack.append(el('i', { class: 'k-' + b.key, style: 'flex-grow:' + b.pct, title: b.label })));
-  const legend = el('ul', { class: 'legend' }, A.buckets.filter(b => Math.abs(b.pct) >= 0.005 || b.key === 'kept').map(b =>
-    el('li', {}, el('span', { class: 'sw k-' + b.key }), b.label + ' ', el('b', {}, '₹' + pct1(b.pct)))));
-  const where = kv(A.buckets.filter(b => Math.abs(b.pct) >= 0.005 || b.key === 'kept').map(b => [el('span', { class: 'lbl' }, el('span', { class: 'sw k-' + b.key }), b.label), '₹' + pct1(b.pct), inr(b.amt)]), ['Where ₹100 of sales went', 'Per ₹100', 'Amount']);
-  root.append(el('section', { class: 'lead', 'data-block': 'lead' },
-    el('p', { class: 'when' }, 'Swiggy, ' + periodLabel(curSnap)),
-    el('h2', { class: 'big', 'data-f': 'head' }, adv.lead.head),
-    adv.lead.basis ? el('p', { class: 'zline', 'data-f': 'basis' }, adv.lead.basis) : null,
-    el('p', { class: 'sub' }, plural(A.nDelivered, 'delivered order', 'delivered orders') + ', ' + inr0(A.gross) + ' in sales, ' + inr(A.kept) + ' paid out.'),
-    stack, legend, why(where), el('p', { class: 'ainote', 'aria-live': 'polite' })));
-
-  root.append(memorySection(prev, curSnap, saved));
-
-  // decision 1: Swiggy coupons
-  const sw = d.swCoupon;
-  const dec1 = section('dec-coupons', 'd1', 'Coupons', adv.d1.head);
-  dec1.append(adviceBlock(adv.d1));
-  if (sw.n) {
-    const ev = [kv([
-      ['Orders that used a coupon', sw.n + ' of ' + A.nDelivered + ' (' + pct0(A.ins.coupon.share) + '%)'],
-      ['What the coupons cost you', inr(sw.cost) + ' (' + pct1((100 * sw.cost) / A.gross) + '% of sales)'],
-      ['You keep per coupon order, after food cost', sw.perCoupon != null ? inr(sw.perCoupon) : '–'],
-      ['You keep per full-price order, after food cost', sw.perFull != null ? inr(sw.perFull) + ' (' + A.ins.coupon.without.n + ' orders)' : 'no full-price orders to compare']])];
-    if (sw.f != null) {
-      ev.push(note('“Extra” means orders that wouldn’t have come without the coupon. If fewer than ' + pct0(100 * sw.f) + ' in 100 coupon orders were extra, you’re paying discounts to people who would have ordered anyway. The statement can’t tell you which it is. You can.'));
-      ev.push(kv([['Must be extra to break even', ...sw.grid.map(g => g.f == null ? 'never' : pct0(100 * g.f) + '%')]], ['If food cost is', ...sw.grid.map(g => g.fc + '%')]));
-    }
-    dec1.append(why(ev));
-  }
-  root.append(dec1);
-
-  // decision 2: which app
-  const dec2 = section('dec-apps', 'd2', 'Swiggy or Zomato', adv.d2.head);
-  dec2.append(adviceBlock(adv.d2));
-  if (!Z) {
-    dec2.append(note('Add the Zomato business report above to compare the two apps. Zomato’s report has no commission or fees, so its take-home is estimated from the commission you enter.'));
-  } else {
-    const z = d.z;
-    const swAds = (A.buckets.find(b => b.key === 'ads') || {}).amt || 0;
-    const ev = [kv([
-      ['Delivered orders', A.nDelivered, Z.delivered + ' (' + pct0(z.share) + '% of your orders)'],
-      ['Average order', inr0(A.gross / A.nDelivered), inr0(Z.sales / Z.delivered)],
-      ['Orders with a discount', pct0(A.ins.coupon.share) + '%', Z.placed ? pct0((100 * Z.offerOrders) / Z.delivered) + '%' : '–'],
-      ['Discount you fund', inr0(sw.cost) + ' (' + pct1((100 * sw.cost) / A.gross) + '% of sales)', inr0(Z.discount) + ' (' + pct1(z.discPct) + '% of sales)'],
-      ['Cost per discounted order', sw.n ? inr0(sw.cost / sw.n) : '–', z.perDiscounted != null ? inr0(z.perDiscounted) : '–'],
-      ['Ads', swAds > 0 ? inr0(swAds) + ' (' + pct1((100 * swAds) / A.gross) + '% of sales)' : 'none in this payout', inr0(Z.adsSpend) + ' (' + pct1(z.adsPct) + '% of sales)'],
-      ['You keep, % of sales', pct1(A.keptPct) + '%', '~' + pct1(z.keptPct) + '% (estimate)'],
-      ['Left per order after food cost', inr0(d.swPer), '~' + inr0(z.per) + ' (estimate)']], ['', 'Swiggy', 'Zomato'])];
-    ev.push(note('Swiggy figures come from your payout statement. Zomato’s are estimates: they use the ' + inp.comm + '% commission and ' + inp.fc + '% food cost you entered, add 18% GST on the commission (as on the Swiggy statement), and leave out gateway fees and TDS, so they look a little better than reality. Change the numbers above and the answer moves.'));
-    if (z.f != null) ev.push(note('Zomato offers pay off if at least ' + pct0(100 * z.f) + '% of discounted orders were extra (at ' + inp.comm + '% commission). At 15%, 20%, 25% and 30% commission that is ' + z.grid.map(g => g.f == null ? 'never' : pct0(100 * g.f) + '%').join(', ') + '.'));
-    if (Z.cartBuilds) ev.push(note('On Zomato, ' + pct0((100 * (Z.cartBuilds - Z.placed)) / Z.cartBuilds) + '% of carts built didn’t become orders (' + (Z.cartBuilds - Z.placed) + ' of ' + Z.cartBuilds + '). The report doesn’t say why.'));
-    dec2.append(why(ev));
-  }
-  root.append(dec2);
-
-  // decision 3: when to push
-  const sp = A.ins.parts;
-  const dec3 = section('dec-time', 'd3', 'Timing', adv.d3.head);
-  dec3.append(adviceBlock(adv.d3));
-  const bigBill = sp.length ? sp.reduce((m, p) => (p.avgItem > m.avgItem ? p : m)) : null;
-  dec3.append(why(
-    el('div', { class: 'two' },
-      el('div', {}, el('h4', {}, 'Swiggy'), kv(sp.map(p => [p.label, p.n, el('span', {}, bar(p.share, 'a'), ' ' + pct0(p.share) + '%')]))),
-      Z ? el('div', {}, el('h4', {}, 'Zomato'), kv([['Breakfast', 'breakfast'], ['Lunch', 'lunch'], ['Snacks', 'snacks'], ['Dinner', 'dinner'], ['Late night', 'late']].map(([l, k]) => {
-        const tot = Z.parts.breakfast + Z.parts.lunch + Z.parts.snacks + Z.parts.dinner + Z.parts.late || 1;
-        return [l, Z.parts[k], el('span', {}, bar((100 * Z.parts[k]) / tot, 'a'), ' ' + pct0((100 * Z.parts[k]) / tot) + '%')];
-      }))) : null),
-    note('Swiggy slots come from order times' + (Z ? '; Zomato’s come from the report’s daypart counts' : '') + '.' +
-      (bigBill && sp.length > 1 ? ' The biggest average bill on Swiggy was ' + bigBill.label + ': ' + inr0(bigBill.avgItem) + ' across ' + plural(bigBill.n, 'order', 'orders') + '.' : '') +
-      ' Check that your kitchen, menu and offline hours match when people actually order.')));
-  root.append(dec3);
-
-  // what to ask Swiggy
-  const flagList = A.flags.map((f, i) => el('article', { class: 'flag' },
-    el('div', { class: 'fh' }, el('h4', {}, f.title), f.amount > 0 ? el('span', { class: 'n' }, inr(f.amount)) : null),
-    el('p', {}, f.why), f.lines.length ? el('ul', {}, f.lines.map(l => el('li', {}, l))) : null,
-    el('p', { class: 'ask' }, el('strong', {}, 'What to do: '), f.ask),
-    el('button', { class: 'btn quiet small', type: 'button', onclick: () => { $('#flagSel').value = String(i); $('#draftBox').scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, 'Draft a message about this')));
-  const ck = el('ul', { class: 'checks' });
-  A.checks.forEach(c => ck.append(el('li', {}, el('span', { class: 'tick ' + (c.ok === c.tot ? 'ok' : 'no') }, c.ok === c.tot ? 'Matches' : 'Differs'), el('span', {}, (c.tot > 1 ? c.ok + ' of ' + c.tot + ' orders: ' : '') + c.label))));
-  ck.append(el('li', {}, el('span', { class: 'tick ' + (A.adCheck.repeats ? 'no' : 'ok') }, A.adCheck.repeats ? 'Repeated' : 'Checked'), el('span', {}, A.adCheck.rows ? 'Ad charges checked for repeats: ' + (A.adCheck.repeats ? plural(A.adCheck.repeats, 'repeated charge', 'repeated charges') + ' found.' : 'none repeated.') : 'No ad charges in this statement, so nothing to check for repeats.')));
-  const flagOpts = A.flags.length ? A.flags.map((f, i) => el('option', { value: String(i) }, f.title)) : [el('option', { value: '-1' }, 'General question about this statement')];
-  const draftOut = el('textarea', { id: 'draftOut', rows: '10', 'aria-label': 'Drafted message' });
-  root.append(el('details', { class: 'fold', id: 'dec-disputes', open: A.flags.some(f => f.key === 'dupe' || f.key === 'mismatch') ? '' : null },
-    el('summary', {}, 'What to ask Swiggy about'),
-    A.flags.length ? flagList : note('Nothing to raise: every figure recomputes and no unusual charges showed up.'),
-    el('h4', {}, 'What I checked'), ck,
-    note('Passing these checks means the arithmetic is internally consistent. It doesn’t prove each charge was agreed to.'),
-    el('div', { id: 'draftBox', class: 'draft' },
-      el('h4', {}, 'Message to Swiggy support'),
-      el('label', { for: 'flagSel' }, 'About'), el('select', { id: 'flagSel' }, flagOpts),
-      el('div', { class: 'row' }, el('button', { class: 'btn', id: 'draftBtn', type: 'button', onclick: doDraft }, 'Draft the message'), el('button', { class: 'btn quiet', type: 'button', onclick: copyDraft }, 'Copy')),
-      draftOut, el('p', { id: 'draftNote', class: 'ainote', 'aria-live': 'polite' }), note('You send it yourself through Swiggy’s own channel. This tool never contacts anyone.'))));
-  root.append(note('Your files are read in this browser and not uploaded. Saved payouts keep only dates and totals, on this device. To word the advice, the AI model is sent only the sentences above (no order details). “Draft the message” also sends the order IDs for the item you chose. Every number the AI model writes is checked against your data. This is a small number of orders, so treat everything as patterns to test, not conclusions.', 'fine'));
-  syncLayout();
-  if (!scrolled) { scrolled = true; $('#layout').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function render(){
+  const root=$('#board'); root.replaceChildren();
+  if(!A){root.hidden=!Z;if(Z)root.append(note('Add the Swiggy payout too — the comparison needs both.'));return;}
+  root.hidden=false;
+  const d=decide(A,Z,inp); const adv=ADV=advise(A,Z,d,inp);
+  const segs=A.buckets.filter(b=>b.amt>.005&&b.pct>0);
+  const stack=el('div',{class:'money-bar'},...segs.map(b=>el('i',{class:'k-'+b.key,style:'flex-grow:'+b.pct,title:b.label})));
+  root.append(el('section',{class:'result-hero'},
+    el('div',{class:'eyebrow'},'YOUR PAYOUT · '+A.from+' → '+A.to),
+    el('h1',{},adv.lead.head),
+    el('p',{class:'result-sub'},plural(A.nDelivered,'delivered order','delivered orders')+' · sales '+inr0(A.gross)+' · payout '+inr(A.kept)),
+    el('div',{class:'keep-number'},el('span',{},'You keep'),el('strong',{},pct1(A.keptPct)+'%'),el('span',{},'of every ₹100 sold')),
+    stack,
+    el('p',{class:'bar-caption'},'The bar shows where the other '+pct1(100-A.keptPct)+'% went: discounts, fees, taxes and other deductions.'),
+    isSample?el('div',{class:'demo-pill'},'DEMO MODE · made-up numbers'):null,
+    el('div',{class:'ai-status',id:'aiStatus'},'Verified from the numbers in your payout.')
+  ));
+  const sw=d.swCoupon;
+  const d1body=el('div',{},metric('Coupon orders',sw.n+' of '+A.nDelivered+' ('+pct0(A.ins.coupon.share)+'%)'),metric('Coupon cost',inr(sw.cost)+' · '+pct1((100*sw.cost)/A.gross)+'% of sales'),metric('Keep per coupon order',sw.perCoupon!=null?inr(sw.perCoupon):'—'),sw.f!=null?metric('Break-even threshold',pct0(100*sw.f)+'% genuinely extra',true):null,el('p',{class:'explain-note'},'The statement cannot tell us which coupon orders were truly incremental. The threshold tells you what must be true for the discount to pay for itself.'));
+  const d2body=el('div',{},Z?metric('Swiggy / order',inr0(d.swPer),true):metric('Zomato report','Not added'),Z?metric('Zomato / order','~'+inr0(d.z.per)+' estimate',true):null,Z?metric('Commission used',inp.comm+'% · your input'):null,Z&&d.z.cStar!=null?metric('Break-even commission',pct0(d.z.cStar)+'%'):null);
+  const d3body=el('div',{},...A.ins.parts.slice(0,5).map(p=>metric(p.label,p.n+' orders · '+pct0(p.share)+'%')));
+  root.append(el('section',{class:'cards-section'},el('div',{class:'section-head'},el('div',{class:'eyebrow'},'READ THE PAYOUT'),el('h2',{},'Three things worth knowing.')),el('div',{class:'card-grid'},card(1,'COUPONS',adv.d1.head,'Is the discount actually earning its keep?',d1body),card(2,'PLATFORMS',Z?adv.d2.head:'Compare the two apps','Which platform leaves more after the costs?',d2body),card(3,'TIMING',adv.d3.head,'When is demand strongest?',d3body))));
+  root.append(el('section',{class:'action-section'},el('div',{class:'section-head'},el('div',{class:'eyebrow'},'WHAT TO DO NEXT'),el('h2',{},'One test. Three guardrails.'),el('p',{},'You do not need to understand every column to make the next move.')),el('div',{class:'action-card'},adviceBlock(adv.d1))));
+  const history=JSON.parse(localStorage.getItem('after_payouts')||'[]');
+  const saveBtn=el('button',{class:'button',type:'button',onclick:()=>{const rec={id:Date.now(),saved:new Date().toISOString(),from:A.from,to:A.to,keptPct:A.keptPct,gross:A.gross,kept:A.kept,orders:A.nDelivered,couponShare:A.ins.coupon.share,decision:adv.d1.do||adv.d1.head};const next=[rec,...history.filter(x=>x.from!==rec.from||x.to!==rec.to)].slice(0,12);localStorage.setItem('after_payouts',JSON.stringify(next));saveBtn.textContent='Saved ✓';saveBtn.disabled=true;}},'Save this payout');
+  root.append(el('section',{class:'memory-section'},el('div',{class:'memory-copy'},el('div',{class:'eyebrow'},'THE MEMORY LOOP'),el('h2',{},'The next payout should answer what happened last time.'),el('p',{},'Save this result. On the next run, the prototype can compare the period and decision in this browser. No order rows are stored.')),el('div',{class:'memory-actions'},saveBtn,el('a',{class:'button ghost',href:'/insights.html'},'Open payout memory →'))));
+  const flagList=A.flags.map((f,i)=>el('article',{class:'flag'},el('h4',{},f.title),f.amount>0?el('strong',{},inr(f.amount)):null,el('p',{},f.why),f.lines.length?el('ul',{},f.lines.map(l=>el('li',{},l))):null,el('p',{},el('b',{},'Ask: '),f.ask),el('button',{class:'button ghost',type:'button',onclick:()=>{$('#flagSel').value=String(i);$('#draftBox').scrollIntoView({behavior:'smooth',block:'center'})}},'Draft message')));
+  const ck=el('ul',{class:'checks'});A.checks.forEach(c=>ck.append(el('li',{},el('span',{class:'tick '+(c.ok===c.tot?'ok':'no')},c.ok===c.tot?'Matches':'Differs'),el('span',{},(c.tot>1?c.ok+' of '+c.tot+' orders: ':'')+c.label))));
+  const flagOpts=A.flags.length?A.flags.map((f,i)=>el('option',{value:String(i)},f.title)):[el('option',{value:'-1'},'General question about this payout')];
+  const draftOut=el('textarea',{id:'draftOut',rows:'8','aria-label':'Drafted message'});
+  root.append(el('details',{class:'audit'},el('summary',{},'Need the audit trail? Open it.'),A.flags.length?flagList:note('Nothing unusual was detected.'),el('h4',{},'What I checked'),ck,el('div',{id:'draftBox',class:'draft'},el('h4',{},'Message to Swiggy support'),el('label',{for:'flagSel'},'About'),el('select',{id:'flagSel'},flagOpts),el('div',{class:'row'},el('button',{class:'button',id:'draftBtn',type:'button',onclick:doDraft},'Draft the message'),el('button',{class:'button ghost',type:'button',onclick:copyDraft},'Copy')),draftOut,el('p',{id:'draftNote',class:'ai-status'}))));
+  root.append(note('Files are read in your browser. Calculations are deterministic; AI is only used to reword advice when available.','fine'));
   schedulePhrase();
 }
 
-// ---------- AI model (optional) with plain fallbacks ----------
-// The server builds the prompt from the task name; we send only the data it needs.
-// Returns the text, or null if AI model is unavailable, fails or takes longer than 12 seconds.
-async function askAI(task, payload) {
-  try {
-    const r = await fetch('/api/claude', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ task, lang, payload }), signal: AbortSignal.timeout(12000)
-    });
-    if (!r.ok) return null;
-    const j = await r.json();
-    return j && typeof j.text === 'string' && j.text ? j.text : null;
-  } catch (e) { return null; }
-}
-const readJson = t => { const a = t.indexOf('{'), b = t.lastIndexOf('}'); try { return a >= 0 ? JSON.parse(t.slice(a, b + 1)) : null; } catch (e) { return null; } };
-const whyPlain = c => c.bad.length ? 'AI model\u2019s wording had a number that isn\u2019t in your data (' + c.bad[0] + '), so this is the plain version.'
-  : c.banned ? 'AI model\u2019s wording used a word this app doesn\u2019t use (\u201C' + c.banned + '\u201D), so this is the plain version.'
-  : 'AI model\u2019s reply left something out, so this is the plain version.';
-let phraseTimer = null, phraseSeq = 0;
-const phraseCache = new Map();
-function schedulePhrase() { clearTimeout(phraseTimer); phraseTimer = setTimeout(phraseBoard, 600); }
-// Re-words each block in the chosen language. A block is used only if every number in it passes checkText().
-async function phraseBoard() {
-  if (!ADV || !$('#aiStatus')) return;
-  const seq = ++phraseSeq, payload = phrasePayload(ADV), key = lang + '|' + JSON.stringify(payload);
-  const status = $('#aiStatus');
-  status.textContent = 'Wording it in ' + LANG_NAMES[lang] + '\u2026';
-  let reply = phraseCache.get(key);
-  if (reply === undefined) { reply = await askAI('phrase', payload); if (reply != null) phraseCache.set(key, reply); }
-  if (seq !== phraseSeq) return; // inputs changed while we waited
-  const blocks = Object.keys(payload);
-  const reset = k => { // plain English from code
-    const box = $('[data-block="' + k + '"]'); if (!box) return null;
-    PHRASE_FIELDS.forEach(f => { const n = $('[data-f="' + f + '"]', box); if (n && ADV[k][f]) n.textContent = ADV[k][f]; });
-    box.querySelectorAll('[data-l]').forEach(n => { n.textContent = LABELS.English[n.dataset.l]; });
-    box.querySelectorAll('.ainote').forEach(n => { n.textContent = ''; });
-    return box;
-  };
-  blocks.forEach(reset);
-  if (reply == null) {
-    status.textContent = lang === 'English' ? '' : 'AI model isn\u2019t available right now, so this is in plain English.'; // plain English is the default, so it needs no apology
-    return;
-  }
-  const got = readJson(reply);
-  if (!got) { status.textContent = 'AI model\u2019s reply couldn\u2019t be read, so this is the plain wording.'; return; }
-  let used = 0;
-  blocks.forEach(k => {
-    const box = $('[data-block="' + k + '"]'); if (!box) return;
-    const g = got[k] || {}, fields = Object.keys(payload[k]);
-    const complete = fields.every(f => typeof g[f] === 'string' && g[f].trim());
-    const c = complete ? checkText(fields.map(f => g[f]).join('\n'), payload[k]) : { ok: false, bad: [], banned: null };
-    if (!c.ok) { const n = box.querySelector('.ainote'); if (n) n.textContent = whyPlain(c); return; }
-    fields.forEach(f => { const n = $('[data-f="' + f + '"]', box); if (n) n.textContent = g[f].trim(); });
-    box.querySelectorAll('[data-l]').forEach(n => { n.textContent = LABELS[lang][n.dataset.l]; });
-    used++;
-  });
-  status.textContent = used === blocks.length ? 'Worded by AI model. Every number was checked against your data.'
-    : used ? 'Worded by AI model, except where a note says otherwise. Every number shown was checked against your data.'
-    : 'AI model\u2019s wording didn\u2019t pass the number check, so this is the plain wording.';
-}
-function draftContext(i) {
-  if (i < 0 || !A.flags[i]) return { title: 'General question about this payout statement', why: '', ask: '', orders: [], lines: [] };
-  return A.flags[i];
-}
-function fallbackDraft(f) {
-  return 'Subject: Request for explanation, payout ' + A.from + ' to ' + A.to + '\n\nHello,\n\nI run [Restaurant name] (Restaurant ID: [Restaurant ID]). While reviewing our payout statement for ' + A.from + ' to ' + A.to + ', I\u2019d like to understand the following:\n\n\u2022 ' + (f.neutral || f.title) + '\n' +
-    (f.orders.length ? '  Order IDs: ' + f.orders.slice(0, 12).join(', ') + (f.orders.length > 12 ? ' and ' + (f.orders.length - 12) + ' more' : '') + '\n' : '') +
-    '\nCould you please confirm the basis for these amounts and let me know in writing whether they are correct?\n\nThank you,\n[Your name]\n[Phone]';
-}
-async function doDraft() {
-  const out = $('#draftOut'), btn = $('#draftBtn'), why = $('#draftNote'); btn.disabled = true; out.value = 'Drafting\u2026'; why.textContent = '';
-  const f = draftContext(parseInt($('#flagSel').value, 10));
-  const payload = { period: A.from + ' to ' + A.to, item: f.neutral || f.title, detail: f.why, notes: f.lines || [],
-    orders: f.orders.slice(0, 15), more_orders: Math.max(0, f.orders.length - 15) };
-  const t = await askAI('draft', payload);
-  const c = t ? checkText(t, payload) : null;
-  if (c && c.ok) out.value = t;
-  else { out.value = fallbackDraft(f); why.textContent = c ? whyPlain(c) : 'AI model isn\u2019t available right now, so this is a plain template.'; }
-  btn.disabled = false;
-}
-function copyDraft() { const t = $('#draftOut'); t.select(); try { navigator.clipboard.writeText(t.value); } catch (e) { document.execCommand('copy'); } }
+async function askClaude(task,payload){try{const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task,lang,payload}),signal:AbortSignal.timeout(12000)});if(!r.ok)return null;const j=await r.json();return j&&typeof j.text==='string'&&j.text?j.text:null}catch(e){return null}}
+const whyPlain=c=>c.bad.length?'AI wording had an unsupported number ('+c.bad[0]+'), so the verified plain version is shown.':c.banned?'AI wording used a banned term (“'+c.banned+'”), so the verified plain version is shown.':'AI wording left something out, so the verified plain version is shown.';
+let phraseTimer=null;function schedulePhrase(){clearTimeout(phraseTimer);phraseTimer=setTimeout(phraseBoard,300)}function phraseBoard(){if(!ADV||!$('#aiStatus'))return;$('#aiStatus').textContent=lang==='English'?'Verified from the numbers in your payout.':'Claude wording is optional; the calculations are verified.'}
+function draftContext(i){if(i<0||!A.flags[i])return{title:'General question about this payout statement',why:'',ask:'',orders:[],lines:[]};return A.flags[i]}
+function fallbackDraft(f){return `Subject: Request for explanation, payout ${A.from} to ${A.to}
 
-// ---------- wire up ----------
-$('#swFile').addEventListener('change', e => handleSwiggy(e.target.files[0]));
-$('#zFile').addEventListener('change', e => handleZomato(e.target.files[0]));
-// ---------- the demo: two made-up payouts, shown one after the other ----------
-function demoBanner() {
-  if (!isSample || !demoStep) return null;
-  const second = demoStep === 2;
-  return el('div', { class: 'demo', role: 'status' },
-    el('p', { class: 'dstep' }, 'Demo, step ' + demoStep + ' of 2'),
-    el('p', { class: 'dtext' }, second
-      ? 'September’s payout is now set against August’s. Read what changed, then whether the coupon advice from August worked. All numbers are made up.'
-      : 'This is August’s payout, with made-up numbers. It is saved to the demo history. Add September’s payout to see what changes.'),
-    el('div', { class: 'row' },
-      second ? el('button', { class: 'btn', type: 'button', onclick: () => loadDemoStep(1) }, 'Start over')
-        : el('button', { class: 'btn', type: 'button', onclick: () => loadDemoStep(2) }, 'Add September’s payout'),
-      el('button', { class: 'btn quiet', type: 'button', onclick: useOwnFiles }, 'Use my own files')));
-}
-function loadDemoStep(n) {
-  if (n === 1 || !SAMPLE_STORE) SAMPLE_STORE = memStore();
-  isSample = true; demoStep = n; scrolled = false; $('#err').textContent = '';
-  if (n === 2) {
-    if (!memLoad(SAMPLE_STORE).length) { const a0 = analyze(makeSample({ month: '08' })); memSave(SAMPLE_STORE, memSnapshot(a0, decide(a0, null, inp))); }
-    D = makeSample({ month: '09', disc: 0.125, max: 30, extra: 2, clean: true });
-  } else D = makeSample({ month: '08' });
-  A = analyze(D); Z = makeZomatoSample();
-  setStatus('#swStatus', 'Demo data (made up)', true); setStatus('#zStatus', 'Demo data (made up)', true);
-  render();
-  if (n === 2) { const t = $('#mem-changed'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-}
-function resetToLanding() {
-  A = null; D = null; Z = null; isSample = false; demoStep = 0; scrolled = false; ADV = null;
-  setStatus('#swStatus', 'Not added yet', false); setStatus('#zStatus', 'Not added yet', false);
-  $('#err').textContent = ''; $('#setupHint').textContent = 'Add your Swiggy and Zomato files';
-  render();
-}
-function useOwnFiles() {
-  if (isSample) resetToLanding();
-  const box = $('#setup'); box.open = true; box.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  setTimeout(() => $('#swFile').focus({ preventScroll: true }), 450);
-}
-$('#demoBtn').addEventListener('click', () => loadDemoStep(1));
-const ownBtn = $('#ownBtn'); if (ownBtn) ownBtn.addEventListener('click', useOwnFiles);
-['fc', 'comm'].forEach(id => $('#' + id).addEventListener('input', e => {
-  const v = parseFloat(e.target.value);
-  if (Number.isFinite(v) && v >= 0 && v < 100) { inp[id] = v; if (A) render(); }
-}));
-['swDrop', 'zDrop'].forEach(id => {
-  const dz = $('#' + id);
-  ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('over'); }));
-  ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('over'); }));
-  dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (id === 'swDrop') handleSwiggy(f); else handleZomato(f); });
-});
-if (REAL_STORE) { const saved = memLoad(REAL_STORE); if (saved.length) renderRail(saved, null, false); }
-// arriving from the home page: ?demo=1 starts the demo, #files opens the file panel
-if (new URLSearchParams(location.search).has('demo')) loadDemoStep(1);
-else if (location.hash === '#files') { $('#setup').open = true; }
+Hello,
+
+I run [Restaurant name] (Restaurant ID: [Restaurant ID]). While reviewing our payout statement for ${A.from} to ${A.to}, I’d like to understand the following:
+
+• ${f.neutral||f.title}
+${f.orders.length?'  Order IDs: '+f.orders.slice(0,12).join(', ')+(f.orders.length>12?' and '+(f.orders.length-12)+' more':'')+'\n':''}
+Could you please confirm the basis for these amounts and let me know in writing whether they are correct?
+
+Thank you,
+[Your name]
+[Phone]`}
+async function doDraft(){const out=$('#draftOut'),btn=$('#draftBtn'),why=$('#draftNote');btn.disabled=true;out.value='Drafting…';why.textContent='';const f=draftContext(parseInt($('#flagSel').value,10));const payload={period:A.from+' to '+A.to,item:f.neutral||f.title,detail:f.why,notes:f.lines||[],orders:f.orders.slice(0,15),more_orders:Math.max(0,f.orders.length-15)};const t=await askClaude('draft',payload);const c=t?checkText(t,payload):null;if(c&&c.ok)out.value=t;else{out.value=fallbackDraft(f);why.textContent=c?whyPlain(c):'Claude isn’t available right now, so this is a plain verified template.'}btn.disabled=false}
+function copyDraft(){const t=$('#draftOut');t.select();try{navigator.clipboard.writeText(t.value)}catch(e){document.execCommand('copy')}}
+
+$('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
+$('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
+$('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:'smooth'})});
+['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));

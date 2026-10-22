@@ -24,7 +24,7 @@ if (fs.existsSync(envFile)) {
   });
 }
 const handler = require('../api/claude.js');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
 
 function fake(body, res) {
   if (FAKE === 'down') return res.status(503).json({ error: 'AI not configured' });
@@ -55,7 +55,7 @@ http.createServer((req, res) => {
     });
     return;
   }
-  const file = path.join(PUB, url === '/' ? 'index.html' : (path.extname(url) ? url : url + '.html'));
+  const file = path.join(PUB, url === '/' ? 'index.html' : url);
   if (!file.startsWith(PUB + path.sep)) { res.statusCode = 403; return res.end(); }
   fs.readFile(file, (err, data) => {
     if (err) { res.statusCode = 404; return res.end('Not found'); }

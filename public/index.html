@@ -1,156 +1,49 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Payout Checker: spreadsheets in, decisions out</title>
-<meta name="description" content="Spreadsheets in. Decisions out. Read your Swiggy payout and Zomato report in your browser, see what you keep, and what changed since last time.">
-<link rel="preload" href="fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css">
-</head>
-<body class="home">
-<header class="top">
-  <div class="mark">Payout Checker <a class="toplink" href="app?demo=1">Try the demo</a></div>
-  <h1 class="promise">See what you keep. <span class="nb">Then see what changed.</span></h1>
-  <div class="herogrid">
-    <div class="herotext">
-      <p class="intro">Swiggy and Zomato pay you less than your customers paid. Payout Checker shows where each ₹100 went, tells you what to do about it, and remembers, so the next payout shows what changed and whether your last decision worked.</p>
-      <div class="start">
-        <a class="btn big" href="app?demo=1">Try the demo</a>
-        <a class="btn quiet big" href="app#files">Use my own files</a>
-      </div>
-      <p class="micro">The demo takes about a minute and uses made-up numbers.</p>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AFTER. — From payout statement to decision</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f6f3;--ink:#0d3b31;--muted:#708079;--line:#d5dfda;--green:#075b49;--lime:#d9ff36;--paper:#fffefa;--red:#b45f53;--serif:Newsreader,Georgia,serif;--sans:Inter,system-ui,sans-serif}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}.nav{position:fixed;z-index:50;top:0;left:0;right:0;padding:25px 5vw;display:flex;justify-content:space-between;align-items:center;font-size:12px;letter-spacing:.13em;text-transform:uppercase}.nav a{color:inherit;text-decoration:none}.logo{font-weight:700}.hero{height:360vh;position:relative}.sticky{position:sticky;top:0;height:100vh;overflow:hidden;display:flex;align-items:center}.sheets{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}.sheet{position:absolute;width:min(560px,42vw);height:330px;background:var(--paper);border:1px solid #ccd8d2;box-shadow:0 30px 90px rgba(11,57,47,.12);padding:20px;will-change:transform,opacity}.sheet:nth-child(1){transform:translate(-52%,-54%) rotate(-6deg)}.sheet:nth-child(2){transform:translate(8%,-48%) rotate(4deg)}.sheet:nth-child(3){transform:translate(-42%,12%) rotate(2deg)}.sheet:nth-child(4){transform:translate(2%,16%) rotate(-5deg)}.sheet:nth-child(5){transform:translate(-20%,-2%) rotate(7deg)}.sheet-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--line);font-size:9px;letter-spacing:.12em;color:#75847d}.dots{display:flex;gap:4px}.dots i{width:7px;height:7px;border-radius:50%;background:#c9d3ce}.table{display:grid;grid-template-columns:1.5fr 1fr .7fr .8fr;margin-top:17px;border-left:1px solid var(--line);border-top:1px solid var(--line)}.table span{min-height:31px;padding:7px 8px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:9px;color:#718079}.table .strong{font-weight:600;color:var(--ink)}.table .flag{background:#f2e5e1;color:var(--red)}.sheet-title{font:500 28px/1 var(--serif);margin:20px 0 8px}.sheet-note{font-size:11px;color:var(--muted)}
+.scroll-cue{position:absolute;bottom:6vh;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);transition:opacity .2s}.scroll-cue:after{content:'↓';display:block;text-align:center;margin-top:8px;font-size:16px}.story{position:absolute;inset:0;display:grid;place-items:center;opacity:0;transform:translateY(30px);pointer-events:none;padding:12vh 8vw}.story-inner{max-width:1050px;width:100%}.eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--green);margin-bottom:20px}.story h1{font:500 clamp(4rem,8.5vw,9rem)/.82 var(--serif);letter-spacing:-.065em;margin:0;max-width:980px}.story p{font-size:19px;line-height:1.55;color:var(--muted);max-width:650px;margin:28px 0 0}.problem-line{margin-top:40px;font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.solution{position:absolute;inset:0;display:grid;place-items:center;opacity:0;transform:translateY(30px);pointer-events:none;padding:12vh 8vw}.solution-grid{width:100%;max-width:1050px;display:grid;grid-template-columns:1fr 1fr;gap:12px}.sol-card{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:28px;min-height:205px}.sol-card:nth-child(3){grid-column:1/-1;background:var(--green);color:#fff}.sol-num{font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}.sol-card:nth-child(3) .sol-num{color:var(--lime)}.sol-card h2{font:500 42px/1 var(--serif);letter-spacing:-.035em;margin:24px 0 10px}.sol-card p{margin:0;color:var(--muted);font-size:14px;max-width:500px}.sol-card:nth-child(3) p{color:#d5e5df}.cta{position:absolute;inset:0;display:grid;place-items:center;text-align:center;opacity:0;transform:translateY(30px);pointer-events:none;padding:12vh 7vw}.cta h2{font:500 clamp(4rem,9vw,9rem)/.82 var(--serif);letter-spacing:-.065em;margin:0}.cta p{max-width:570px;color:var(--muted);font-size:17px;line-height:1.5;margin:28px auto 0}.button{display:inline-flex;margin-top:30px;background:var(--green);color:#fff;text-decoration:none;padding:16px 24px;border-radius:999px;font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.after-section{padding:150px 8vw;border-top:1px solid var(--line);max-width:1250px;margin:auto}.after-section h2{font:500 clamp(3.5rem,7vw,7rem)/.85 var(--serif);letter-spacing:-.06em;max-width:850px;margin:15px 0 70px}.three{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}.three article{padding:28px 28px 20px 0;border-right:1px solid var(--line)}.three article+article{padding-left:28px}.three article:last-child{border-right:0}.three h3{font:500 34px/1 var(--serif);margin:25px 0 12px}.three p{color:var(--muted);line-height:1.55;max-width:330px}.bottom{min-height:70vh;display:grid;place-items:center;text-align:center;padding:100px 7vw}.bottom h2{font:500 clamp(4rem,9vw,9rem)/.82 var(--serif);letter-spacing:-.065em;margin:0}.bottom p{color:var(--muted);max-width:600px;margin:25px auto 0}.foot{padding:25px 6vw;border-top:1px solid var(--line);font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+@media(max-width:800px){.nav{padding:20px 6vw}.hero{height:330vh}.sheet{width:78vw;height:260px}.sheet:nth-child(1){transform:translate(-51%,-54%) rotate(-6deg)}.sheet:nth-child(2){transform:translate(2%,-45%) rotate(4deg)}.sheet:nth-child(3){transform:translate(-48%,15%) rotate(2deg)}.sheet:nth-child(4){transform:translate(0,18%) rotate(-5deg)}.sheet:nth-child(5){transform:translate(-25%,0) rotate(7deg)}.story,.solution,.cta{padding:14vh 7vw}.story h1{font-size:clamp(3.4rem,15vw,6rem)}.story p{font-size:16px}.solution-grid{grid-template-columns:1fr}.sol-card:nth-child(3){grid-column:auto}.sol-card{min-height:165px;padding:22px}.sol-card h2{font-size:32px}.three{grid-template-columns:1fr}.three article,.three article+article{border-right:0;border-bottom:1px solid var(--line);padding:25px 0}.after-section{padding:100px 7vw}.after-section h2{margin-bottom:50px}.foot{display:block}.foot span{display:block;margin:5px 0}}
+</style></head>
+<body>
+<nav class="nav"><a class="logo" href="/">AFTER.</a><a href="/demo.html">Enter demo →</a></nav>
+<section class="hero" id="hero">
+  <div class="sticky">
+    <div class="sheets" id="sheets">
+      <div class="sheet"><div class="sheet-head"><span class="dots"><i></i><i></i><i></i></span><span>PAYOUT_BREAKUP.XLSX</span><span>54 COLUMNS</span></div><div class="sheet-title">₹49,700 payout</div><div class="table"><span class="strong">SALES</span><span>₹82.4K</span><span>100%</span><span>OK</span><span class="strong">COUPONS</span><span>₹1.84K</span><span>42%</span><span class="flag">WATCH</span><span class="strong">FEES</span><span>₹13.2K</span><span>16%</span><span>OK</span><span class="strong">PAYOUT</span><span>₹49.7K</span><span>60%</span><span>KEEP</span></div></div>
+      <div class="sheet"><div class="sheet-head"><span class="dots"><i></i><i></i><i></i></span><span>ORDER_LEVEL.CSV</span><span>1,428 ROWS</span></div><div class="sheet-title">1,428 order rows</div><div class="table"><span class="strong">ORDER ID</span><span>ITEMS</span><span>FEE</span><span>NET</span><span>19005244</span><span>205.31</span><span>24%</span><span>173.05</span><span>19003814</span><span>36.32</span><span>24%</span><span>289.47</span><span>19002622</span><span>327.93</span><span>24%</span><span>302.43</span></div></div>
+      <div class="sheet"><div class="sheet-head"><span class="dots"><i></i><i></i><i></i></span><span>DISCOUNT_SUMMARY.XLSX</span><span>MONTHLY</span></div><div class="sheet-title">Coupons & discounts</div><div class="table"><span class="strong">COUPON</span><span>ORDERS</span><span>DISCOUNT</span><span>SHARE</span><span>WELCOME20</span><span>14</span><span>₹1,840</span><span>42%</span><span>FLAT100</span><span>8</span><span>₹800</span><span>18%</span><span>FIRST50</span><span>6</span><span>₹300</span><span>7%</span></div></div>
+      <div class="sheet"><div class="sheet-head"><span class="dots"><i></i><i></i><i></i></span><span>ADS_AND_FEES.XLSX</span><span>MONTHLY</span></div><div class="sheet-title">Fees. Ads. Taxes.</div><div class="table"><span class="strong">COMMISSION</span><span>₹8.4K</span><span>24%</span><span>CHECK</span><span class="strong">ADS</span><span>₹1.2K</span><span>3%</span><span>WATCH</span><span class="strong">GST</span><span>₹2.1K</span><span>—</span><span>OK</span></div></div>
+      <div class="sheet"><div class="sheet-head"><span class="dots"><i></i><i></i><i></i></span><span>MONTHLY_REPORT.XLSX</span><span>AUGUST</span></div><div class="sheet-title">Everything, everywhere.</div><div class="table"><span class="strong">ORDERS</span><span>1,428</span><span>—</span><span>OK</span><span class="strong">SALES</span><span>₹82.4K</span><span>—</span><span>OK</span><span class="strong">NET</span><span>₹49.7K</span><span>60%</span><span class="flag">?</span></div></div>
     </div>
-<div class="clutter" aria-hidden="true">
-<div class="sheet s1">
-<table><thead><tr><th class="rn"></th><th>Order ID</th><th>Item's total</th><th>Restaurant Discount Share</th><th>Net bill value</th><th>Service Fees %</th><th>Commission</th></tr></thead><tbody>
-<tr><td class="rn">1</td><td>2190052445</td><td>205.31</td><td></td><td>48.95</td><td>24.0%</td><td>473.05</td></tr>
-<tr><td class="rn">2</td><td>2190038140</td><td></td><td>36.32</td><td></td><td>24.0%</td><td>429.96</td></tr>
-<tr><td class="rn">3</td><td>2190026226</td><td>327.93</td><td>32.17</td><td>25.79</td><td>24.0%</td><td>289.47</td></tr>
-<tr><td class="rn">4</td><td>2190027455</td><td>75.01</td><td></td><td>424.39</td><td>24.0%</td><td>302.43</td></tr>
-<tr><td class="rn">5</td><td>2190093743</td><td>50.66</td><td>293.47</td><td>258.14</td><td>24.0%</td><td>404.16</td></tr>
-<tr><td class="rn">6</td><td>2190071027</td><td>235.66</td><td>413.08</td><td>126.93</td><td>24.0%</td><td>273.10</td></tr>
-<tr><td class="rn">7</td><td>2190055020</td><td>149.73</td><td>61.39</td><td>393.71</td><td>24.0%</td><td>254.26</td></tr>
-<tr><td class="rn">8</td><td>2190015138</td><td>40.36</td><td>410.33</td><td>176.86</td><td>24.0%</td><td>258.27</td></tr>
-<tr><td class="rn">9</td><td>2190069795</td><td></td><td></td><td>362.46</td><td>24.0%</td><td></td></tr>
-<tr><td class="rn">10</td><td>2190050580</td><td>516.41</td><td>147.99</td><td>347.70</td><td>24.0%</td><td></td></tr>
-<tr><td class="rn">11</td><td>2190070515</td><td>317.68</td><td>113.47</td><td>383.95</td><td>24.0%</td><td>476.74</td></tr>
-</tbody></table>
-<div class="tabs"><span>Payout Breakup</span><span class="on">Order Level</span><span>Growth Investment Other Charges</span><span>Discount Summary</span></div>
-</div>
-<div class="sheet s2">
-<table><thead><tr><th class="rn"></th><th>GST on Service Fee @18%</th><th>Total Swiggy Fees</th><th>GST Deduction</th><th>TCS</th><th>TDS</th><th>Total Taxes</th></tr></thead><tbody>
-<tr><td class="rn">1</td><td>318.32</td><td>208.86</td><td>71.20</td><td>286.11</td><td>512.96</td><td>197.83</td></tr>
-<tr><td class="rn">2</td><td>190.76</td><td></td><td>342.43</td><td></td><td>94.82</td><td>75.75</td></tr>
-<tr><td class="rn">3</td><td>336.60</td><td>165.68</td><td>446.79</td><td>340.58</td><td>237.45</td><td>494.98</td></tr>
-<tr><td class="rn">4</td><td>406.68</td><td>207.00</td><td>250.39</td><td>99.12</td><td>229.13</td><td></td></tr>
-<tr><td class="rn">5</td><td>368.35</td><td></td><td>279.04</td><td>319.14</td><td></td><td>195.64</td></tr>
-<tr><td class="rn">6</td><td>384.52</td><td>313.19</td><td>59.98</td><td>508.47</td><td>162.16</td><td>389.83</td></tr>
-<tr><td class="rn">7</td><td>435.37</td><td>359.87</td><td>106.71</td><td>188.11</td><td>475.36</td><td>155.01</td></tr>
-<tr><td class="rn">8</td><td>388.60</td><td></td><td>269.57</td><td>184.96</td><td>281.61</td><td>330.95</td></tr>
-<tr><td class="rn">9</td><td>374.35</td><td>394.33</td><td>124.48</td><td>417.73</td><td>256.25</td><td>514.59</td></tr>
-</tbody></table>
-</div>
-<div class="sheet s3">
-<table><thead><tr><th class="rn"></th><th>Payment Collection Charges</th><th>Long Distance Charges</th><th>Pocket Hero Fees</th><th>Net Payout (after taxes) [W-B-C-D]</th></tr></thead><tbody>
-<tr><td class="rn">1</td><td>459.25</td><td>100.70</td><td>179.03</td><td>376.03</td></tr>
-<tr><td class="rn">2</td><td>247.77</td><td>41.88</td><td></td><td>175.62</td></tr>
-<tr><td class="rn">3</td><td>311.67</td><td>317.34</td><td></td><td>178.88</td></tr>
-<tr><td class="rn">4</td><td>388.70</td><td>62.35</td><td>369.98</td><td>462.29</td></tr>
-<tr><td class="rn">5</td><td>288.28</td><td>45.11</td><td>375.35</td><td>386.54</td></tr>
-<tr><td class="rn">6</td><td>120.76</td><td>516.42</td><td></td><td>241.98</td></tr>
-<tr><td class="rn">7</td><td>394.81</td><td>309.85</td><td>487.48</td><td>285.11</td></tr>
-<tr><td class="rn">8</td><td>90.27</td><td>377.71</td><td></td><td>72.41</td></tr>
-</tbody></table>
-</div>
-<div class="sheet s4">
-<table><thead><tr><th class="rn"></th><th>Coupon type applied</th><th>Last Mile (in km)</th><th>MFR Accurate?</th><th>Swiggy One Customer?</th><th>Order Payment Type</th></tr></thead><tbody>
-<tr><td class="rn">1</td><td>553.54</td><td>454.43</td><td></td><td>260.60</td><td>169.51</td></tr>
-<tr><td class="rn">2</td><td>341.29</td><td>31.67</td><td>466.81</td><td>423.82</td><td>430.11</td></tr>
-<tr><td class="rn">3</td><td>501.52</td><td>78.95</td><td>453.86</td><td>316.45</td><td>77.90</td></tr>
-<tr><td class="rn">4</td><td>147.95</td><td>62.58</td><td></td><td>275.98</td><td>403.77</td></tr>
-<tr><td class="rn">5</td><td>503.95</td><td></td><td>21.94</td><td></td><td>14.49</td></tr>
-<tr><td class="rn">6</td><td>509.13</td><td></td><td>506.15</td><td>103.69</td><td>264.24</td></tr>
-<tr><td class="rn">7</td><td>467.53</td><td>128.78</td><td>455.51</td><td>479.85</td><td>105.35</td></tr>
-</tbody></table>
-</div>
-<div class="slip"><span>One statement: 4 sheets, 54 columns per order</span><strong>You kept ₹60 of every ₹100.</strong></div>
-</div>
-  </div>
-</header>
-
-<main class="page">
-
-<section class="sec">
-  <h2 class="st">Your payout is not your sales.</h2>
-  <div class="cols">
-    <p>The apps take commission, GST on that commission, coupons you fund, ads and fees, then pay you the rest in a long spreadsheet. Most owners see one number and never see where the rest went.</p>
-    <p>In one real Swiggy statement we tested, with 28 orders, the owner kept ₹60 of every ₹100 sold. Coupons he funded himself took ₹13. Nothing in the statement said that in one place.</p>
+    <div class="story" id="problem"><div class="story-inner"><div class="eyebrow">01 · The problem</div><h1>The payout tells you <em>what</em> you got.<br>Not <em>why.</em></h1><p>Commission. Coupons. Ads. Fees. Taxes. The spreadsheet has the answers buried inside it — but the owner still has to do the detective work.</p><div class="problem-line">A payout is a number. A decision is a business tool.</div></div></div>
+    <div class="solution" id="solution"><div class="solution-grid"><article class="sol-card"><div class="sol-num">02 · Understand</div><h2>See what you actually kept.</h2><p>We turn the statement into one number that matters: what you keep from every ₹100 sold.</p></article><article class="sol-card"><div class="sol-num">03 · Decide</div><h2>Find the lever worth changing.</h2><p>Coupons, app economics and dayparts become three focused decisions — not another dashboard.</p></article><article class="sol-card"><div class="sol-num">04 · Learn</div><h2>Bring the next payout back.</h2><p>Save the decision, compare the next payout, and learn whether the change actually moved the economics.</p></article></div></div>
+    <div class="cta" id="cta"><div><div class="eyebrow">05 · Try it</div><h2>Less dashboard.<br>More decision.</h2><p>Run the guided demo with made-up data first. Then use your own payout when you're ready.</p><a class="button" href="/demo.html">Enter the demo →</a></div></div>
+    <div class="scroll-cue" id="cue">Scroll to strip away the noise</div>
   </div>
 </section>
-
-<section class="sec">
-  <h2 class="st">How it works</h2>
-  <ol class="flow">
-    <li><h3>Add your files</h3><p>Your Swiggy payout statement and, if you have it, the Zomato business report. They are read in your browser.</p></li>
-    <li><h3>See what you keep</h3><p>Where each ₹100 went, and three decisions about coupons, Swiggy against Zomato, and when to push. Each one says what to do, how to measure it, and when to stop.</p></li>
-    <li><h3>Save the payout</h3><p>A small summary stays on your device: dates and totals, never order details.</p></li>
-    <li><h3>Add the next one</h3><p>The page shows what changed, which cost moved most, and whether the coupon advice from last time worked.</p></li>
-  </ol>
-</section>
-
-<section class="sec">
-  <h2 class="st">What “what changed” looks like</h2>
-  <p class="lede">A made-up example, so you can see the shape of it.</p>
-  <p class="said">You kept 3.5 more of every ₹100. The cost that fell most was coupons you funded: ₹9.3 of every ₹100 before, ₹4.8 now.</p>
-  <div class="scroll"><table class="ledger">
-    <thead><tr><th></th><th>August</th><th>September</th><th>Change</th></tr></thead>
-    <tbody>
-      <tr class="sig"><td>Coupons you funded</td><td class="old">₹359</td><td>₹210</td><td class="chg good">−42%</td></tr>
-      <tr class="sig"><td>Kept of every ₹100</td><td class="old">₹62.1</td><td>₹65.6</td><td class="chg good">+3.5 points</td></tr>
-      <tr class="sig"><td>Net per order</td><td class="old">₹171</td><td>₹181</td><td class="chg good">+6%</td></tr>
-    </tbody></table></div>
-  <div class="verdict"><h4>Did it work? Last time we suggested halving the coupon.</h4><p class="res">It looks like it worked.</p><p>Orders held at about 5 a week, inside the limit we said to watch for. Other things changed too, so treat this as a signal, not proof.</p></div>
-</section>
-
-<section class="sec">
-  <h2 class="st">Private by design</h2>
-  <div class="cols">
-    <p>Your files are read inside your browser and never uploaded. Only the sentences on the page, with no order details, can go to an AI model to be reworded, and only if one is set up.</p>
-    <p>Saving is your choice. A saved payout keeps dates and totals on this device only, and one button deletes everything.</p>
-  </div>
-</section>
-
-<section class="sec">
-  <h2 class="st">How it is built</h2>
-  <p class="lede">Each tool has one job. Code does the money, because a payout figure has to be exact. AI is used where words and language matter, and a code checker watches what it writes.</p>
-  <dl class="tools">
-    <dt>Claude and Claude Code</dt><dd>Planned and built the app in a loop of plan, build, check and fix, with a written plan and 22 automated tests.</dd>
-    <dt>Apify</dt><dd>Collected the public posts, search results and review pages behind the research.</dd>
-    <dt>SheetJS</dt><dd>Reads the Swiggy and Zomato files inside your browser.</dd>
-    <dt>An AI model</dt><dd>Rewords the advice in English, Hindi or Kannada through one small server function. Code then checks every number it writes against your data and throws out any wording with a number that isn’t there. With no key, the page shows plain English.</dd>
-    <dt>GitHub and Vercel</dt><dd>Keep the code and host the site.</dd>
-    <dt>Node’s test runner</dt><dd>Checks the maths, the number checker and the memory.</dd>
-  </dl>
-</section>
-
-<section class="sec">
-  <h2 class="st">What it can’t do yet</h2>
-  <ul class="plain">
-    <li>It reads Swiggy payout statements. Zomato’s report has no commission or fees, so Zomato take-home is always an estimate.</li>
-    <li>It has been tested on one outlet’s statements. Treat the advice as ideas to test, not conclusions.</li>
-    <li>“Did it work?” covers the coupon decision only, for now.</li>
-  </ul>
-</section>
-
-<section class="sec closing">
-  <h2 class="st">Spreadsheets in. Decisions out.</h2>
-  <div class="start">
-    <a class="btn big" href="app?demo=1">Try the demo</a>
-    <a class="btn quiet big" href="app#files">Use my own files</a>
-  </div>
-</section>
-
-</main>
-</body>
-</html>
+<section class="after-section"><div class="eyebrow">The loop</div><h2>Every payout should make the next decision easier.</h2><div class="three"><article><div class="eyebrow">01</div><h3>Read</h3><p>Files are parsed in the browser. The arithmetic is deterministic.</p></article><article><div class="eyebrow">02</div><h3>Act</h3><p>The biggest economic lever becomes a simple test with a measure and a stop rule.</p></article><article><div class="eyebrow">03</div><h3>Remember</h3><p>The prototype keeps the useful history locally so the next payout can show what changed.</p></article></div></section>
+<section class="bottom"><div><div class="eyebrow">Ready when you are</div><h2>Bring the messy<br>statement.</h2><p>We'll turn it into something you can actually use.</p><a class="button" href="/demo.html">Run the demo →</a></div></section>
+<footer class="foot"><span>AFTER. — Payout to decision.</span><span>Prototype · files stay in your browser</span></footer>
+<script>
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const ease=x=>{x=clamp(x);return x*x*(3-2*x)};
+const sheets=[...document.querySelectorAll('.sheet')], problem=document.querySelector('#problem'), solution=document.querySelector('#solution'), cta=document.querySelector('#cta'), cue=document.querySelector('#cue');
+function animate(){const r=document.querySelector('#hero').getBoundingClientRect(), max=document.querySelector('#hero').offsetHeight-innerHeight, p=clamp(-r.top/Math.max(1,max));
+  const throwP=ease(clamp((p-.05)/.30)), problemP=ease(clamp((p-.34)/.18)), solutionP=ease(clamp((p-.56)/.16)), ctaP=ease(clamp((p-.75)/.16));
+  const dirs=[[-1.5,-.9],[1.5,-.8],[-.25,-1.35],[1.6,.85],[-1.5,.75]], bases=[[-6,0],[4,-5],[2,8],[-5,10],[7,-2]];
+  sheets.forEach((s,i)=>{const d=dirs[i],b=bases[i],x=d[0]*innerWidth*throwP,y=d[1]*innerHeight*throwP;s.style.transform=`translate(calc(-50% + ${b[0]+x}px),calc(-50% + ${b[1]+y}px)) rotate(${b[0]+d[0]*30*throwP}deg) scale(${1-.12*throwP})`;s.style.opacity=String(1-clamp((throwP-.72)/.28));});
+  const set=(node,v)=>{node.style.opacity=v;node.style.transform=`translateY(${30*(1-v)}px)`;node.style.pointerEvents=v>.85?'auto':'none'};
+  set(problem,problemP);set(solution,solutionP);set(cta,ctaP);cue.style.opacity=String(1-clamp(p/.18));
+}
+window.addEventListener('scroll',animate,{passive:true});window.addEventListener('resize',animate);animate();
+</script>
+</body></html>
