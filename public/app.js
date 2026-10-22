@@ -259,7 +259,7 @@ async function copySummary(status) {
   } catch (e) { status.textContent = 'Could not copy automatically. Select and copy this summary:'; let fallback=status.parentElement.querySelector('.copy-manual'); if(!fallback){fallback=el('textarea',{class:'copy-manual',rows:'7','aria-label':'Summary to copy'});status.after(fallback);} fallback.value=txt; fallback.hidden=false; fallback.focus(); fallback.select(); }
 }
 
-const adviceBlock = a => el('div',{class:'advice'},el('div',{class:'advice-item'},el('span',{},'DO'),el('strong',{},a.do||'No change needed.')),el('div',{class:'advice-item'},el('span',{},'MEASURE'),el('strong',{},a.measure||'Track the result.')),el('div',{class:'advice-item'},el('span',{},'STOP IF'),el('strong',{},a.stop||'The test fails.')),a.basis?el('p',{class:'basis'},a.basis):null);
+const adviceBlock = a => el('div',{class:'advice'},el('div',{class:'advice-item'},el('span',{},LABELS[lang].do),el('strong',{},a.do||'No change needed.')),el('div',{class:'advice-item'},el('span',{},LABELS[lang].measure),el('strong',{},a.measure||'Track the result.')),el('div',{class:'advice-item'},el('span',{},LABELS[lang].stop),el('strong',{},a.stop||'The test fails.')),a.basis?el('p',{class:'basis'},a.basis):null);
 
 function metricSnapshot(source, decisions) {
   const weeks=(Date.parse(source.to+'T00:00:00Z')-Date.parse(source.from+'T00:00:00Z')+86400000)/604800000;
@@ -392,5 +392,6 @@ $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
+
 
 
