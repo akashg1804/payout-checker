@@ -595,3 +595,28 @@ function checkText(text, payload) {
   const bw = BANNED.exec(toAscii(text));
   return { ok: !bad.length && !bw, bad, banned: bw ? bw[0] : null };
 }
+
+// ---------- week by week ----------
+// Complete weeks only: a partial week has fewer days, so it would look like a fall just because it is short.
+// "Fell" means the latest complete week is half or less of the busiest complete week before it.
+function ordersTrend(A) {
+  const full = ((A.ins && A.ins.weeks) || []).filter(w => !w.partial);
+  if (full.length < 2) return null;
+  const last = full[full.length - 1], before = full.slice(0, -1);
+  const peak = before.reduce((m, w) => (w.n > m.n ? w : m), before[0]);
+  if (!(peak.n > 0) || last.n * 2 > peak.n) return null;
+  const total = full.reduce((s, w) => s + w.n, 0);
+  return {
+    from: peak.n, to: last.n, fromWeek: peak.start, toWeek: last.start,
+    line: 'Orders fell from ' + peak.n + ' a week to ' + last.n + '. Worth asking what changed.',
+    basis: 'Complete weeks only: ' + total + ' orders across ' + full.length + ' weeks.' + (total < 20 ? ' That is few orders, so treat this as something to check, not a conclusion.' : '')
+  };
+}
+
+// ---------- break-even meter ----------
+// If a share f (0 to 1) of the coupon orders were extra (they would not have come without the coupon),
+// what the coupons earn compared with running no coupons:   earn = f x C - (1 - f) x D
+//   C = what the coupon orders keep after food cost, D = the discount given (both from decide()).
+// The extra orders add C. The rest, (1 - f) of the orders, would have come anyway at full price, so the discount on them is lost.
+// At the break-even share D / (C + D) it is exactly 0.
+function couponEarn(sw, f) { return f * sw.C - (1 - f) * sw.cost; }

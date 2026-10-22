@@ -18,6 +18,10 @@ const TASKS = {
     user: 'Re-word each field below in ' + lang + ' so an owner understands it at a glance. Keep the meaning and every number. ' +
       'Reply with JSON only, with exactly the same keys, and nothing else.\n\nDATA:\n'
   }),
+  ask: lang => ({
+    system: RULES + ' If the data does not contain an answer, say so plainly. Never infer a cause from a comparison. Keep estimates clearly labelled.',
+    user: 'Answer the restaurant owner in ' + lang + ' in 2 to 4 short sentences. Answer only from the calculated metrics below. Use numbers exactly as shown, distinguish estimates, and do not suggest a cause unless the data proves it (normally it does not). If the question cannot be answered from these metrics, say what is missing.\n\nQUESTION AND VERIFIED METRICS:\n'
+  }),
   draft: () => ({
     system: RULES,
     user: 'Write a short, polite message from a restaurant partner to Swiggy partner support asking them to explain the item below. ' +

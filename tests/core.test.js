@@ -68,7 +68,7 @@ test('advice: rules pick Do / Measure / Stop from computed numbers', () => {
   const A = core.analyze(core.parseWorkbook(swiggy()));
   const Z = core.parseZomatoCsv(ZCSV);
   const adv = core.advise(A, Z, core.decide(A, Z, inp), inp);
-  assert.equal(adv.lead.head, 'You keep about ₹63.5 of every ₹100 you sell on Swiggy.');
+  assert.equal(adv.lead.head, 'You keep \u20b963.5 of every \u20b9100 sold on Swiggy.');
   assert.equal(adv.d1.rule, 'halve');                  // 48% sits between 25% and 50%
   assert.match(adv.d1.head, /48% of those orders/);
   assert.match(adv.d1.stop, /more than 1 a week/);     // 0.48 x 2 coupon orders in 1 week, at least 1
@@ -153,4 +153,67 @@ test('wrong files give a specific error code, never numbers', () => {
   assert.equal(codeOf(() => core.parseZomatoCsv('a,b\n1,2')), 'NO_METRICS');
   assert.equal(codeOf(() => core.parseZomatoCsv('%PDF-1.4 \u0000\u0001 binary junk')), 'NO_METRICS');
   assert.equal(codeOf(() => core.parseZomatoCsv(ZCSV.replace('Delivered orders,10', 'Delivered orders,0'))), 'EMPTY');
+});
+
+// ---------- break-even meter ----------
+// Same four-order fixture: the two coupon orders keep 2 x 112.8 = 225.6 and food cost at 35% is 0.35 x 400 = 140,
+// so C = 85.6. The discount given is D = 2 x 40 = 80. earn(f) = f x 85.6 - (1 - f) x 80, break-even f = 80 / 165.6.
+test('meter: earn = f x C - (1 - f) x D, checked by hand', () => {
+  const A = core.analyze(core.parseWorkbook(swiggy()));
+  const sw = core.decide(A, null, inp).swCoupon;
+  near(sw.C, 85.6); near(sw.cost, 80);
+  near(core.couponEarn(sw, 0), -80);          // no order was extra: all discount, no gain
+  near(core.couponEarn(sw, 1), 85.6);         // every order was extra: the coupon orders all count
+  near(core.couponEarn(sw, 0.5), 2.8);        // 42.8 - 40
+  near(core.couponEarn(sw, 0.25), -38.6);     // 21.4 - 60
+  near(core.couponEarn(sw, 0.4), -13.76);     // 34.24 - 48
+  assert.ok(core.couponEarn(sw, 0.6) > core.couponEarn(sw, 0.5), 'earn rises as more orders were extra');
+});
+
+test('meter: exactly zero at the break-even share decide() reports', () => {
+  const A = core.analyze(core.parseWorkbook(swiggy()));
+  const sw = core.decide(A, null, inp).swCoupon;
+  near(sw.f, 80 / 165.6, 1e-9);
+  near(core.couponEarn(sw, sw.f), 0, 1e-9);
+  near(core.couponEarn(sw, sw.f + 0.1) + core.couponEarn(sw, sw.f - 0.1), 0, 1e-9); // a straight line through zero here
+  // a different food cost moves C and D stays: at 50% food cost C = 225.6 - 200 = 25.6, break-even 80 / 105.6
+  const hi = core.decide(A, null, { fc: 50, comm: 20 }).swCoupon;
+  near(hi.f, 80 / 105.6, 1e-9);
+  near(core.couponEarn(hi, hi.f), 0, 1e-9);
+});
+
+// ---------- week by week ----------
+const wk = (start, n, partial = false) => ({ start, n, partial, days: partial ? 3 : 7 });
+const trendOf = weeks => core.ordersTrend({ ins: { weeks } });
+
+test('weeks: "orders fell" only for complete weeks, and only by half or more', () => {
+  const fell = trendOf([wk('2026-08-03', 6, true), wk('2026-08-10', 8), wk('2026-08-17', 6), wk('2026-08-24', 3)]);
+  assert.equal(fell.line, 'Orders fell from 8 a week to 3. Worth asking what changed.');
+  assert.equal(trendOf([wk('2026-08-10', 8), wk('2026-08-17', 4)]).line, 'Orders fell from 8 a week to 4. Worth asking what changed.'); // exactly half counts
+  assert.equal(trendOf([wk('2026-08-10', 8), wk('2026-08-17', 5)]), null);                  // 5 is more than half of 8
+  assert.equal(trendOf([wk('2026-08-10', 8), wk('2026-08-17', 8), wk('2026-08-24', 1, true)]), null); // a short last week is ignored
+  assert.equal(trendOf([wk('2026-08-10', 8)]), null);                                        // one complete week: nothing to compare
+  assert.equal(trendOf([wk('2026-08-03', 8, true), wk('2026-08-10', 2, true)]), null);       // no complete weeks
+  assert.equal(trendOf([wk('2026-08-10', 5), wk('2026-08-17', 9), wk('2026-08-24', 4)]).line, 'Orders fell from 9 a week to 4. Worth asking what changed.'); // busiest earlier week, not the first
+  assert.equal(trendOf([wk('2026-08-10', 5), wk('2026-08-17', 9), wk('2026-08-24', 12)]), null); // a rise is not a fall
+});
+
+test('weeks: the analysis marks partial weeks and the trend reads from it', () => {
+  const at = (id, day) => order(id, '2026-08-' + day + ' 13:00:00', '');
+  // Aug 4 (Tue) to Aug 17 (Mon): week of Aug 3 covers 6 days, week of Aug 10 covers 7, week of Aug 17 covers 1
+  const A = core.analyze(core.parseWorkbook(swiggy([at('2000000001', '04'), at('2000000002', '05'), at('2000000003', '10'), at('2000000004', '11'), at('2000000005', '17')])));
+  assert.deepEqual([...A.ins.weeks.map(w => w.n)], [2, 2, 1]);
+  assert.deepEqual([...A.ins.weeks.map(w => w.partial)], [true, false, true]);
+  assert.deepEqual([...A.ins.weeks.map(w => w.days)], [6, 7, 1]);
+  assert.equal(core.ordersTrend(A), null);
+  // Aug 3 to Aug 23: three complete weeks of 4, 3 and 2 orders
+  const rows = [at('2000000011', '03'), at('2000000012', '04'), at('2000000013', '05'), at('2000000014', '06'),
+    at('2000000015', '10'), at('2000000016', '12'), at('2000000017', '14'), at('2000000018', '17'), at('2000000019', '23')];
+  const B = core.analyze(core.parseWorkbook(swiggy(rows)));
+  assert.deepEqual([...B.ins.weeks.map(w => w.n)], [4, 3, 2]);
+  assert.deepEqual([...B.ins.weeks.map(w => w.partial)], [false, false, false]);
+  const t = core.ordersTrend(B);
+  assert.equal(t.line, 'Orders fell from 4 a week to 2. Worth asking what changed.');
+  assert.match(t.basis, /^Complete weeks only: 9 orders across 3 weeks\. That is few orders/);
+  assert.equal(core.ordersTrend(core.analyze(core.parseWorkbook(swiggy(rows.slice(0, 8).concat([at('2000000020', '23'), at('2000000021', '22'), at('2000000022', '21')]))))), null); // 4, 3, 4: no fall
 });

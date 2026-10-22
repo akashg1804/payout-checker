@@ -30,6 +30,12 @@ function fake(body, res) {
   if (FAKE === 'down') return res.status(503).json({ error: 'AI not configured' });
   if (FAKE === 'slow') return setTimeout(() => res.status(200).json({ text: '{}' }), 20000);
   if (FAKE === 'junk') return res.status(200).json({ text: 'Sorry, here is some text that is not JSON.' });
+  if (body.task === 'ask') {
+    const p = body.payload || {}, m = p.metrics || {};
+    let text = 'For ' + (p.period || 'this payout') + ', kept per 100 is ' + m.keptPer100 + ' across ' + m.deliveredOrders + ' delivered orders. Use the breakdown above for the supporting figures.';
+    if (FAKE === 'bad') text += ' The unsupported difference is 999.';
+    return res.status(200).json({ text });
+  }
   if (body.task === 'draft') {
     const p = body.payload || {};
     let text = 'Subject: Request for explanation\n\nHello,\n\nPlease explain: ' + (p.item || '') + '\nOrder IDs: ' + (p.orders || []).join(', ') + '\n\nThank you,\n[Your name]';
