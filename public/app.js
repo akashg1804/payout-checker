@@ -251,7 +251,8 @@ async function copySummary(status) {
     d.swCoupon.f != null ? 'Coupon break-even: about ' + pct0(100 * d.swCoupon.f) + '% of coupon orders would need to be genuinely extra.' : '',
     Z && d.z ? 'Zomato comparison: about ' + inr0(d.z.per) + ' per order (estimate using ' + inp.comm + '% commission).' : '',
     trend ? trend.line + ' This is a signal to investigate, not a proven cause.' : '',
-    'Calculated from the payout statement. Zomato figures, if shown, are estimates.'].filter(Boolean).join('\n');
+    'Calculated from the payout statement. Zomato figures, if shown, are estimates.'].filter(Boolean).join('
+');
   try {
     if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(txt);
     else { const t = el('textarea', { class: 'copy-buffer' }); t.value = txt; document.body.append(t); t.select(); if (!document.execCommand('copy')) throw new Error('copy failed'); t.remove(); }
@@ -266,7 +267,8 @@ function metricSnapshot(source, decisions) {
   const d=decisions||decide(source,Z,inp),sw=d.swCoupon;
   return {
     sales:source.gross,payout:source.kept,keptPer100:source.keptPct,keptPct:source.keptPct,deliveredOrders:source.nDelivered,
-    periodDays:Math.max(1,Math.round((Date.parse(source.to+'T00:00:00Z')-Date.parse(source.from+'T00:00:00Z'))/86400000)+1),\n    ordersPerWeek:Math.round(source.nDelivered/Math.max(1,weeks)*10)/10,
+    periodDays:Math.max(1,Math.round((Date.parse(source.to+'T00:00:00Z')-Date.parse(source.from+'T00:00:00Z'))/86400000)+1),
+    ordersPerWeek:Math.round(source.nDelivered/Math.max(1,weeks)*10)/10,
     avgOrderPayout:source.nDelivered?source.kept/source.nDelivered:null,
     couponOrders:sw.n,couponDiscount:sw.cost,couponBreakEvenExtraPercent:sw.f==null?null:100*sw.f,
     couponShare:source.ins.coupon.share,dinnerShare:(source.ins.parts.find(p=>p.label.toLowerCase().includes('dinner'))||{}).share||null,
@@ -275,7 +277,8 @@ function metricSnapshot(source, decisions) {
     pricePoints:(source.ins.prices||[]).map(p=>({price:p.price,orders:p.n,averagePayout:p.avgKept,keptPer100:p.keptPct})),
     delivery:source.ins.distance?{averageKm:source.ins.distance.avg,longestKm:source.ins.distance.max,overFourKmPercent:source.ins.distance.over4,orders:source.ins.distance.n}:null,
     weeks:(source.ins.weeks||[]).map(w=>({start:w.start,orders:w.n,sales:w.sales,partial:w.partial,days:w.days})),
-    orderPeriods:source.ins.parts.map(p=>({period:p.label,orders:p.n,share:p.share})),\n    zomato:Z&&d.z?{sales:Z.sales,kept:d.z.kept,keptPer100:d.z.keptPct,deliveredOrders:Z.delivered,perOrder:d.z.per,discount:Z.discount,commissionPercent:inp.comm,ads:Z.adsSpend}:null
+    orderPeriods:source.ins.parts.map(p=>({period:p.label,orders:p.n,share:p.share})),
+    zomato:Z&&d.z?{sales:Z.sales,kept:d.z.kept,keptPer100:d.z.keptPct,deliveredOrders:Z.delivered,perOrder:d.z.per,discount:Z.discount,commissionPercent:inp.comm,ads:Z.adsSpend}:null
   };
 }
 function savedProfile() {
@@ -378,7 +381,8 @@ Hello,
 I run [Restaurant name] (Restaurant ID: [Restaurant ID]). While reviewing our payout statement for ${A.from} to ${A.to}, I’d like to understand the following:
 
 • ${f.neutral||f.title}
-${f.orders.length?'  Order IDs: '+f.orders.slice(0,12).join(', ')+(f.orders.length>12?' and '+(f.orders.length-12)+' more':'')+'\n':''}
+${f.orders.length?'  Order IDs: '+f.orders.slice(0,12).join(', ')+(f.orders.length>12?' and '+(f.orders.length-12)+' more':'')+'
+':''}
 Could you please confirm the basis for these amounts and let me know in writing whether they are correct?
 
 Thank you,
