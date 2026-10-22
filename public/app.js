@@ -168,7 +168,8 @@ function weeksSection(trend) {
     el('div', { class: 'eyebrow' }, 'ORDERS · WEEK BY WEEK'),
     el('h2', {}, 'How many orders each week?'),
     el('p', { class: 'weeks-sub' }, 'Delivered orders per week in this statement. A partial week covers fewer days, so do not set it against a complete one.'),
-    chart,\n    el('div', { class: 'scroll' }, el('table', { class: 'week-table' }, el('thead', {}, el('tr', {}, el('th', {}, 'Week'), el('th', {}, 'Orders'), el('th', {}, 'Sales'))), el('tbody', {}, rows))),
+    chart,
+    el('div', { class: 'scroll' }, el('table', { class: 'week-table' }, el('thead', {}, el('tr', {}, el('th', {}, 'Week'), el('th', {}, 'Orders'), el('th', {}, 'Sales'))), el('tbody', {}, rows))),
     W.length === 1 ? note('This file covers one week, so there is nothing to compare yet.') : null,
     trend ? el('p', { class: 'trend-line' }, trend.line) : null,
     trend ? note(trend.basis) : null);
@@ -403,6 +404,7 @@ $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
+
 
 
 
