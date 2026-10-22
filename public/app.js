@@ -275,7 +275,7 @@ function metricSnapshot(source, decisions) {
     pricePoints:(source.ins.prices||[]).map(p=>({price:p.price,orders:p.n,averagePayout:p.avgKept,keptPer100:p.keptPct})),
     delivery:source.ins.distance?{averageKm:source.ins.distance.avg,longestKm:source.ins.distance.max,overFourKmPercent:source.ins.distance.over4,orders:source.ins.distance.n}:null,
     weeks:(source.ins.weeks||[]).map(w=>({start:w.start,orders:w.n,sales:w.sales,partial:w.partial,days:w.days})),
-    orderPeriods:source.ins.parts.map(p=>({period:p.label,orders:p.n,share:p.share}))
+    orderPeriods:source.ins.parts.map(p=>({period:p.label,orders:p.n,share:p.share})),\n    zomato:Z&&d.z?{sales:Z.sales,kept:d.z.kept,keptPer100:d.z.keptPct,deliveredOrders:Z.delivered,perOrder:d.z.per,discount:Z.discount,commissionPercent:inp.comm,ads:Z.adsSpend}:null
   };
 }
 function savedProfile() {
