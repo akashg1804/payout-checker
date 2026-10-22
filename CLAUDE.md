@@ -4,7 +4,8 @@
 A decision board for small restaurant and cloud-kitchen owners in India. The owner adds a **Swiggy payout statement (.xlsx)** and a **Zomato business report (.csv)**, plus two typed numbers (food cost %, Zomato commission %). The page shows three decisions: Swiggy coupon break-even, which app leaves more per order, and when to push. A side panel lists what to ask Swiggy about and drafts a message.
 
 ## Structure
-- `public/index.html`: markup and styles (light and dark mode).
+- `public/index.html`: the home page (explains the product; no JavaScript). `public/app.html`: the app. `public/style.css`: styles for both. Light theme only. Self-hosted fonts in `public/fonts`.
+- `public/memory.js`: payout memory. Pure functions: `memSnapshot`, `memSave/memLoad/memClear`, `memPrevious`, `memCompare` (what changed), `memVerdict` (did last time's coupon advice work). Storage is passed in (`localStorage` or `memStore()` for samples).
 - `public/core.js`: parsing and analysis. Pure functions, no DOM. `parseWorkbook(wb)` then `analyze(data)`.
 - `public/app.js`: UI rendering (the board), sample data, error messages, and `askClaude(task, payload)` / `phraseBoard()`.
 - `advise()` in `core.js`: rules that pick Do / Measure / Stop per decision. `checkText()`: the number checker every Claude reply must pass.
@@ -27,10 +28,18 @@ A decision board for small restaurant and cloud-kitchen owners in India. The own
 Sheets: `Payout Breakup` (summary), `Order Level` (header row has "Order ID"; 54 columns), `Growth Investment Other Charges` (ads and adjustments, can be empty), `Discount Summary` (coupon rules and totals). Commission is a % of the bill after discounts. GST on Swiggy's fees is 18% of the fees. Column labels can change, so match headers by name, not position, and stop with a clear message if the totals don't reconcile.
 
 ## Next steps (in priority order)
-1. A second real statement to test parsing on another outlet.
-2. Week-by-week history across several statements (repeat charges, rate changes).
-3. Zomato parser.
+1. A second real statement to test parsing and memory on another outlet or month.
+2. Zomato in the memory (the report has no period label yet).
+3. Outcome tracking for decisions other than coupons.
 4. A case tracker for questions sent to Swiggy.
+
+## Memory rules
+- A snapshot holds dates and totals only. **Never store order rows, order IDs, names or anything about customers.**
+- Saving is the owner's choice (a button), never automatic for real data. There must always be a way to delete everything.
+- Sample data uses `memStore()` (in the tab), never `localStorage`.
+- The landing page's main action is **Try the demo** (`loadDemoStep(1)` then `loadDemoStep(2)` in `app.js`): August is saved, September is compared with it. **Use my own files** (`useOwnFiles`) leaves the demo and opens the file panel. Loading a real file always ends the demo.
+- Comparisons never set a 7-day file against a 30-day one: totals are shown per week when lengths differ by more than 3 days.
+- "Did it work?" is a signal, not proof. Keep the line saying other things changed too.
 
 ## Style
 Plain language for non-technical owners. Keep English, Hindi and Kannada output understandable. Don't add dependencies without a reason.

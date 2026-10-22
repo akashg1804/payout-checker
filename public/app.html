@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Payout Checker: add your payout</title>
+<meta name="description" content="Read your Swiggy payout and Zomato report in your browser. See what you keep, what changed since last time, and what to do next.">
+<link rel="preload" href="fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="appbar">
+  <a class="mark" href="/">Payout Checker</a>
+  <nav><a href="/">How it works</a></nav>
+</header>
+<section class="apphead">
+  <h1>Add your payout</h1>
+  <p class="intro">Your files are read in this browser and are not uploaded. Not ready with your own? Run the demo with two made-up payouts.</p>
+  <div class="start">
+    <button class="btn" id="demoBtn" type="button">Try the demo</button>
+  </div>
+</section>
+
+<details class="setup" id="setup" open>
+  <summary>Your files and numbers <span class="hint" id="setupHint">Add your Swiggy and Zomato files</span></summary>
+  <div class="files">
+    <div class="drop" id="swDrop">
+      <strong>Swiggy payout statement</strong>
+      <span class="hint">The .xlsx with an “Order Level” sheet</span>
+      <input type="file" id="swFile" accept=".xlsx,.xls" aria-label="Choose Swiggy payout statement">
+      <span class="status" id="swStatus">Not added yet</span>
+    </div>
+    <div class="drop" id="zDrop">
+      <strong>Zomato business report</strong>
+      <span class="hint">The monthly .csv with Metric rows. You can skip this.</span>
+      <input type="file" id="zFile" accept=".csv,text/csv" aria-label="Choose Zomato business report">
+      <span class="status" id="zStatus">Not added yet</span>
+    </div>
+  </div>
+  <div class="nums">
+    <div>
+      <label for="fc">Food cost, as a % of the price</label>
+      <div class="in"><input id="fc" type="number" min="0" max="100" step="1" value="35" inputmode="decimal">%</div>
+      <small>A starting guess. Replace it with your own food cost.</small>
+    </div>
+    <div>
+      <label for="comm">Zomato commission, %</label>
+      <div class="in"><input id="comm" type="number" min="0" max="100" step="1" value="20" inputmode="decimal">%</div>
+      <small>The Zomato report has no commission, so this is a guess, and Zomato figures are estimates.</small>
+    </div>
+  </div>
+</details>
+<p id="err" role="alert"></p>
+
+<div class="layout" id="layout" hidden>
+  <aside class="rail" id="rail" aria-label="Your saved payouts" hidden></aside>
+  <div id="board" hidden></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="core.js"></script>
+<script src="memory.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

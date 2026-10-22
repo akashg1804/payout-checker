@@ -8,9 +8,18 @@ Add your **Swiggy payout statement** (.xlsx) and your **Zomato business report**
 2. **Which app leaves me more per order?** Swiggy comes from the payout statement. Zomato's take-home is estimated from the commission you enter, because the Zomato report has no commission or fees.
 3. **When should I push?** Orders by time of day on both apps.
 
-A side panel lists what to ask Swiggy about (coupon cost, coupon orders at the stated minimum, cancellation charges, repeated ad charges) and drafts a message you send yourself.
+A section lists what to ask Swiggy about (coupon cost, coupon orders at the stated minimum, cancellation charges, repeated ad charges) and drafts a message you send yourself.
+
+**It remembers.** Save a payout and the page keeps a small summary on your device. Add the next statement and it shows **what changed** (sales, orders, coupons you funded, how much of every ₹100 you kept, net per order), which cost moved most, and whether last time's coupon decision **worked**.
 
 Files are read in the browser and never uploaded.
+
+## How memory works
+- After an analysis, **Save this payout** stores a summary in this browser's local storage: dates, sales, orders, coupon cost, how much of each ₹100 went where, net payout, and the coupon decision. **No order rows, order IDs or customer details are stored.**
+- The next statement is compared with the latest saved one that ended before it began. If the two cover different numbers of days, totals are shown per week.
+- "Did it work?" is read from the two statements (coupon funding per week, orders per week against the limit in the advice). The owner does not have to say what they did, and the page says other things changed too.
+- **Delete my history** clears it. Saving the same period twice replaces it. Nothing leaves the device.
+- **Try the demo** walks through two made-up payouts, one after the other: August is saved, then September arrives and the page shows what changed and whether the coupon advice worked. It uses a separate store that lives in the tab only, so made-up data never reaches a real history.
 
 ## Job to be done
 When I get my Swiggy payout and Zomato report, I want to see what I actually keep and which discounts and apps are worth it, so I can make better decisions in minutes instead of spending 1-1.5 hours a week (one owner's estimate).
@@ -20,9 +29,9 @@ Today: download the reports, check lines by hand, guess whether coupons and ads 
 With this: upload two files, enter food cost and commission, read three decisions and what to try next. Hand-checking disappears. The owner still decides and sends any message.
 
 ## Architecture: Input -> AI -> Logic -> Action -> Output
-- **Input:** the two files, read in the browser (SheetJS), plus two numbers the owner types (food cost %, Zomato commission %).
+- **Input:** the two files, read in the browser (SheetJS), plus two numbers the owner types (food cost %, Zomato commission %). A saved summary of earlier payouts, if the owner chose to keep one, is read from local storage.
 - **AI model:** explains the decisions in English, Hindi or Kannada and drafts the support message. It sees only summary numbers.
-- **Logic (plain code):** recomputes every deduction, flags unusual items, computes coupon break-even and the per-order comparison, and checks the Zomato report's swapped labels by testing the arithmetic.
+- **Logic (plain code):** compares with the last saved payout and decides whether last time's coupon advice worked (`memory.js`), recomputes every deduction, flags unusual items, computes coupon break-even and the per-order comparison, and checks the Zomato report's swapped labels by testing the arithmetic.
 - **Action:** shows the board; the owner copies a drafted message and sends it through Swiggy's own channel.
 - **Output:** three decisions, each with the evidence and a "try next" experiment.
 
@@ -41,7 +50,13 @@ Arithmetic must be exact, so it is code. AI is used where wording and judgement 
 One outlet, one month, Swiggy payout plus Zomato report only. No evidence yet that owners will pay. Zomato take-home is estimated, and the board leaves out gateway fees and TDS on Zomato.
 
 ## What's next
-A menu with cost per portion, or monthly purchase bills, to replace the typed food cost; several months of history; and dish-level profit if an item-level export is available. Zomato only sends the business report, so its commission stays an estimate (shown as a range).
+A menu with cost per portion, or monthly purchase bills, to replace the typed food cost; Zomato in the memory (its report has no period label yet); outcome tracking for the platform and timing decisions, not only coupons; an optional cloud copy with sign-in, if owners want history across devices; and dish-level profit if an item-level export is available. Zomato only sends the business report, so its commission stays an estimate (shown as a range).
+
+## Files
+`public/index.html` (the home page that explains the product), `public/app.html` (the app: files, board, demo), `style.css`, `core.js` (parsing, maths, advice, number checker), `memory.js` (summaries, comparison, verdict), `app.js` (screens), `api/claude.js` (server function for the AI wording), `tests/` (22 tests, `npm test`). Fonts (Bricolage Grotesque, Source Serif 4) are self-hosted under the SIL Open Font License.
+
+## The flow
+Home (`/`) explains the product and has two buttons: **Try the demo** (`/app?demo=1`, which starts the two-payout demo) and **Use my own files** (`/app#files`, which opens the file panel). The app (`/app`) reads the files, shows the board, and keeps the saved-payouts rail.
 
 ## Run locally
     npm install
