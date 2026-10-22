@@ -401,3 +401,4 @@ $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=make
 
 
 
+
