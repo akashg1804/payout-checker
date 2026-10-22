@@ -1,0 +1,8 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "dev", "runtimeExecutable": "node", "runtimeArgs": ["scripts/dev.js"], "port": 3000 },
+    { "name": "fake-bad", "runtimeExecutable": "node", "runtimeArgs": ["scripts/dev.js", "--fake=bad"], "port": 3001, "env": { "PORT": "3001" } },
+    { "name": "no-key", "runtimeExecutable": "node", "runtimeArgs": ["scripts/dev.js"], "port": 3002, "env": { "PORT": "3002" } }
+  ]
+}
