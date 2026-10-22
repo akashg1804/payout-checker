@@ -275,7 +275,8 @@ function metricSnapshot(source, decisions) {
     pricePoints:(source.ins.prices||[]).map(p=>({price:p.price,orders:p.n,averagePayout:p.avgKept,keptPer100:p.keptPct})),
     delivery:source.ins.distance?{averageKm:source.ins.distance.avg,longestKm:source.ins.distance.max,overFourKmPercent:source.ins.distance.over4,orders:source.ins.distance.n}:null,
     weeks:(source.ins.weeks||[]).map(w=>({start:w.start,orders:w.n,sales:w.sales,partial:w.partial,days:w.days})),
-    orderPeriods:source.ins.parts.map(p=>({period:p.label,orders:p.n,share:p.share})),\n    zomato:Z&&d.z?{sales:Z.sales,kept:d.z.kept,keptPer100:d.z.keptPct,deliveredOrders:Z.delivered,perOrder:d.z.per,discount:Z.discount,commissionPercent:inp.comm,ads:Z.adsSpend}:null
+    orderPeriods:source.ins.parts.map(p=>({period:p.label,orders:p.n,share:p.share})),
+    zomato:Z&&d.z?{sales:Z.sales,kept:d.z.kept,keptPer100:d.z.keptPct,deliveredOrders:Z.delivered,perOrder:d.z.per,discount:Z.discount,commissionPercent:inp.comm,ads:Z.adsSpend}:null
   };
 }
 function savedProfile() {
@@ -391,4 +392,5 @@ $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
+
 
