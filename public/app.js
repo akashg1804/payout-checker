@@ -266,7 +266,7 @@ function metricSnapshot(source, decisions) {
   const d=decisions||decide(source,Z,inp),sw=d.swCoupon;
   return {
     sales:source.gross,payout:source.kept,keptPer100:source.keptPct,keptPct:source.keptPct,deliveredOrders:source.nDelivered,
-    ordersPerWeek:Math.round(source.nDelivered/Math.max(1,weeks)*10)/10,
+    periodDays:Math.max(1,Math.round((Date.parse(source.to+'T00:00:00Z')-Date.parse(source.from+'T00:00:00Z'))/86400000)+1),\n    ordersPerWeek:Math.round(source.nDelivered/Math.max(1,weeks)*10)/10,
     avgOrderPayout:source.nDelivered?source.kept/source.nDelivered:null,
     couponOrders:sw.n,couponDiscount:sw.cost,couponBreakEvenExtraPercent:sw.f==null?null:100*sw.f,
     couponShare:source.ins.coupon.share,dinnerShare:(source.ins.parts.find(p=>p.label.toLowerCase().includes('dinner'))||{}).share||null,
