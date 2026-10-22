@@ -41,7 +41,7 @@ const Z_ERR = {
 const errText = (map, x, dflt) => (map[x && x.code] ? map[x.code](x.detail) : dflt) + ' Nothing was calculated from it.';
 
 // ---------- made-up sample data (clearly labelled) ----------
-function makeSample() {
+function makeSample(variant = 'base') {
   const items = [249, 289, 149, 349, 199, 449, 179, 299, 249, 399, 149, 229, 329, 189, 269, 159, 349, 219, 399, 149, 279, 239, 319];
   const hours = [20, 21, 0, 22, 13, 19, 23, 20, 1, 21, 12, 22, 19, 20];
   // 6 orders in the partial first week (Aug 4-9), then 8, 6 and 3 in complete weeks, so the falling-orders line shows
@@ -74,6 +74,10 @@ function makeSample() {
     rows.push(mk(i + 1, it, 10, coupon, 24, i === 5 ? ((it + 10) * 0.26) : null, 'delivered'));
   });
   rows.push(mk(items.length + 1, 0, 0, '', 24, null, 'cancelled', 'RESTAURANT'));
+  if (variant !== 'base') {
+    const factor = variant === 'strong' ? 1.22 : 0.78;
+    rows.forEach(r => { ['item','pack','share','net','gst','paid','payable','base','comm','pcc','canc','gstFee','totalFees','tds','taxes','netPayout'].forEach(k => { if (typeof r[k] === 'number') r[k] = Math.round(r[k] * factor * 100) / 100; }); });
+  }
   const breakup = { 'net payout': rows.reduce((s, r) => s + r.netPayout, 0), 'total customer paid': rows.reduce((s, r) => s + r.paid, 0) };
   const coupons = [{ code: 'WELCOME20', share: 100, orders: 0, discount: 0, threshold: 149, text: 'Use code WELCOME20 & get 20% off on orders above \u20B9149. Maximum discount: \u20B950.' }];
   const adjustments = [
@@ -82,7 +86,7 @@ function makeSample() {
   ];
   return { rows, breakup, coupons, adjustments, platform: 'Swiggy' };
 }
-function makeZomatoSample() {
+function makeZomatoSample(variant = 'base') {
   return {
     platform: 'Zomato', delivered: 60, sales: 17200, discount: 910, placed: 63, offerOrders: 30, offerSales: 8900, swapped: false,
     adsSales: 14800, adsSpend: 340, impressions: 11000, adsImpressions: 8800, menuOpens: 800, cartBuilds: 150, newU: 30, repeatU: 26, lapsedU: 7,
@@ -392,6 +396,7 @@ $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
+
 
 
 
