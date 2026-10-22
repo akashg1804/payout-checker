@@ -137,7 +137,7 @@ const kv = (rows, head) => el('div', { class: 'scroll' }, el('table', { class: '
   el('tbody', {}, rows.map(r => el('tr', {}, r.map((c, i) => el('td', { class: i ? 'n' : '' }, c)))))));
 const section = (id, block, kicker, headline, ...rest) => el('section', { class: 'dec', id, 'data-block': block }, el('p', { class: 'kicker' }, kicker), el('h3', { class: 'hl', 'data-f': 'head' }, headline), rest);
 const note = (t, cls) => el('p', { class: 'note ' + (cls || '') }, t);
-// Do / Measure / Stop if, picked by advise() in core.js. Claude may re-word it later (phraseBoard).
+// Do / Measure / Stop if, picked by advise() in core.js. AI model may re-word it later (phraseBoard).
 const adviceBlock = a => el('div', { class: 'advice' },
   el('dl', {}, ['do', 'measure', 'stop'].filter(f => a[f]).flatMap(f => [el('dt', { 'data-l': f }, LABELS.English[f]), el('dd', { 'data-f': f }, a[f])])),
   a.basis ? el('p', { class: 'basis', 'data-f': 'basis' }, a.basis) : null,
@@ -244,14 +244,14 @@ function render() {
       el('label', { for: 'flagSel' }, 'About'), el('select', { id: 'flagSel' }, flagOpts),
       el('div', { class: 'row' }, el('button', { class: 'btn', id: 'draftBtn', type: 'button', onclick: doDraft }, 'Draft the message'), el('button', { class: 'btn ghost', type: 'button', onclick: copyDraft }, 'Copy')),
       draftOut, el('p', { id: 'draftNote', class: 'ainote', 'aria-live': 'polite' }), note('You send it yourself through Swiggy\u2019s own channel. This tool never contacts anyone.'))));
-  root.append(note('Your files are read in this browser and not uploaded. To word the advice, Claude is sent only the sentences above (no order details). \u201CDraft the message\u201D also sends the order IDs for the item you chose. Every number Claude writes is checked against your data. This is one outlet and one period, so treat everything as patterns to test, not conclusions.', 'fine'));
+  root.append(note('Your files are read in this browser and not uploaded. To word the advice, AI model is sent only the sentences above (no order details). \u201CDraft the message\u201D also sends the order IDs for the item you chose. Every number AI model writes is checked against your data. This is one outlet and one period, so treat everything as patterns to test, not conclusions.', 'fine'));
   schedulePhrase();
 }
 
-// ---------- Claude (optional) with plain fallbacks ----------
+// ---------- AI model (optional) with plain fallbacks ----------
 // The server builds the prompt from the task name; we send only the data it needs.
-// Returns the text, or null if Claude is unavailable, fails or takes longer than 12 seconds.
-async function askClaude(task, payload) {
+// Returns the text, or null if AI model is unavailable, fails or takes longer than 12 seconds.
+async function askAI(task, payload) {
   try {
     const r = await fetch('/api/claude', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -263,9 +263,9 @@ async function askClaude(task, payload) {
   } catch (e) { return null; }
 }
 const readJson = t => { const a = t.indexOf('{'), b = t.lastIndexOf('}'); try { return a >= 0 ? JSON.parse(t.slice(a, b + 1)) : null; } catch (e) { return null; } };
-const whyPlain = c => c.bad.length ? 'Claude\u2019s wording had a number that isn\u2019t in your data (' + c.bad[0] + '), so this is the plain version.'
-  : c.banned ? 'Claude\u2019s wording used a word this app doesn\u2019t use (\u201C' + c.banned + '\u201D), so this is the plain version.'
-  : 'Claude\u2019s reply left something out, so this is the plain version.';
+const whyPlain = c => c.bad.length ? 'AI model\u2019s wording had a number that isn\u2019t in your data (' + c.bad[0] + '), so this is the plain version.'
+  : c.banned ? 'AI model\u2019s wording used a word this app doesn\u2019t use (\u201C' + c.banned + '\u201D), so this is the plain version.'
+  : 'AI model\u2019s reply left something out, so this is the plain version.';
 let phraseTimer = null, phraseSeq = 0;
 const phraseCache = new Map();
 function schedulePhrase() { clearTimeout(phraseTimer); phraseTimer = setTimeout(phraseBoard, 600); }
@@ -276,7 +276,7 @@ async function phraseBoard() {
   const status = $('#aiStatus');
   status.textContent = 'Wording it in ' + LANG_NAMES[lang] + '\u2026';
   let reply = phraseCache.get(key);
-  if (reply === undefined) { reply = await askClaude('phrase', payload); if (reply != null) phraseCache.set(key, reply); }
+  if (reply === undefined) { reply = await askAI('phrase', payload); if (reply != null) phraseCache.set(key, reply); }
   if (seq !== phraseSeq) return; // inputs changed while we waited
   const blocks = Object.keys(payload);
   const reset = k => { // plain English from code
@@ -288,11 +288,11 @@ async function phraseBoard() {
   };
   blocks.forEach(reset);
   if (reply == null) {
-    status.textContent = lang === 'English' ? 'Plain wording: Claude isn\u2019t available right now. The numbers are the same either way.' : 'Claude isn\u2019t available right now, so this is in plain English.';
+    status.textContent = lang === 'English' ? 'Plain wording: AI model isn\u2019t available right now. The numbers are the same either way.' : 'AI model isn\u2019t available right now, so this is in plain English.';
     return;
   }
   const got = readJson(reply);
-  if (!got) { status.textContent = 'Claude\u2019s reply couldn\u2019t be read, so this is the plain wording.'; return; }
+  if (!got) { status.textContent = 'AI model\u2019s reply couldn\u2019t be read, so this is the plain wording.'; return; }
   let used = 0;
   blocks.forEach(k => {
     const box = $('[data-block="' + k + '"]'); if (!box) return;
@@ -304,9 +304,9 @@ async function phraseBoard() {
     box.querySelectorAll('[data-l]').forEach(n => { n.textContent = LABELS[lang][n.dataset.l]; });
     used++;
   });
-  status.textContent = used === blocks.length ? 'Worded by Claude. Every number was checked against your data.'
-    : used ? 'Worded by Claude, except where a note says otherwise. Every number shown was checked against your data.'
-    : 'Claude\u2019s wording didn\u2019t pass the number check, so this is the plain wording.';
+  status.textContent = used === blocks.length ? 'Worded by AI model. Every number was checked against your data.'
+    : used ? 'Worded by AI model, except where a note says otherwise. Every number shown was checked against your data.'
+    : 'AI model\u2019s wording didn\u2019t pass the number check, so this is the plain wording.';
 }
 function draftContext(i) {
   if (i < 0 || !A.flags[i]) return { title: 'General question about this payout statement', why: '', ask: '', orders: [], lines: [] };
@@ -322,10 +322,10 @@ async function doDraft() {
   const f = draftContext(parseInt($('#flagSel').value, 10));
   const payload = { period: A.from + ' to ' + A.to, item: f.neutral || f.title, detail: f.why, notes: f.lines || [],
     orders: f.orders.slice(0, 15), more_orders: Math.max(0, f.orders.length - 15) };
-  const t = await askClaude('draft', payload);
+  const t = await askAI('draft', payload);
   const c = t ? checkText(t, payload) : null;
   if (c && c.ok) out.value = t;
-  else { out.value = fallbackDraft(f); why.textContent = c ? whyPlain(c) : 'Claude isn\u2019t available right now, so this is a plain template.'; }
+  else { out.value = fallbackDraft(f); why.textContent = c ? whyPlain(c) : 'AI model isn\u2019t available right now, so this is a plain template.'; }
   btn.disabled = false;
 }
 function copyDraft() { const t = $('#draftOut'); t.select(); try { navigator.clipboard.writeText(t.value); } catch (e) { document.execCommand('copy'); } }

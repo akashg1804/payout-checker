@@ -21,7 +21,7 @@ With this: upload two files, enter food cost and commission, read three decision
 
 ## Architecture: Input -> AI -> Logic -> Action -> Output
 - **Input:** the two files, read in the browser (SheetJS), plus two numbers the owner types (food cost %, Zomato commission %).
-- **AI (Claude):** explains the decisions in English, Hindi or Kannada and drafts the support message. It sees only summary numbers.
+- **AI model:** explains the decisions in English, Hindi or Kannada and drafts the support message. It sees only summary numbers.
 - **Logic (plain code):** recomputes every deduction, flags unusual items, computes coupon break-even and the per-order comparison, and checks the Zomato report's swapped labels by testing the arithmetic.
 - **Action:** shows the board; the owner copies a drafted message and sends it through Swiggy's own channel.
 - **Output:** three decisions, each with the evidence and a "try next" experiment.
@@ -45,8 +45,8 @@ A menu with cost per portion, or monthly purchase bills, to replace the typed fo
 
 ## Run locally
     npm install
-    npm run dev                      # http://localhost:3000 (uses ANTHROPIC_API_KEY from .env.local if present)
-    npm run dev -- --fake=bad        # fake Claude that invents a number: the checker must catch it
+    npm run dev                      # http://localhost:3000 (uses GEMINI_API_KEY / OPENROUTER_API_KEY from .env.local if present)
+    npm run dev -- --fake=bad        # fake AI that invents a number: the checker must catch it
                                      # other modes: good, junk, slow, down
     npm test                         # parsing, decisions, advice rules, number checker, wrong files
     npm run check -- path/to/swiggy.xlsx path/to/zomato.csv 35 20
@@ -54,9 +54,9 @@ A menu with cost per portion, or monthly purchase bills, to replace the typed fo
 Copy `.env.example` to `.env.local` and add your key. `.env.local` is git-ignored. Keep real statements outside this folder.
 
 ## How the advice works
-`advise()` in core.js picks Do / Measure / Stop for each decision from computed numbers. Claude only re-words it in English, Hindi or Kannada. `checkText()` then checks every number in Claude's text against what Claude was sent (Hindi and Kannada digits and Indian commas included). Any block that fails, uses a banned word, or comes back incomplete shows the plain version with a note. If Claude is unavailable or takes more than 12 seconds, the board stays in plain English.
+`advise()` in core.js picks Do / Measure / Stop for each decision from computed numbers. The AI model only re-words it in English, Hindi or Kannada. `checkText()` then checks every number in the AI model's text against the data it was given (Hindi and Kannada digits and Indian commas included). Any block that fails, uses a banned word, or comes back incomplete shows the plain version with a note. If the AI model is unavailable or takes more than 12 seconds, the board stays in plain English.
 
-**Not verified yet:** Claude's Hindi and Kannada wording has never been run against the real API, because no API key was available during the build. The number checker and the fallback were tested with the fake Claude modes (`npm run dev -- --fake=bad`) on a real statement. **Without a key, the page shows the advice in plain English** and says so at the top of the board, whichever language is picked.
+**Not verified yet:** the AI model's Hindi and Kannada wording has never been run against the real API, because no API key was available during the build. The number checker and the fallback were tested with the fake AI modes (`npm run dev -- --fake=bad`) on a real statement. **Without a key, the page shows the advice in plain English** and says so at the top of the board, whichever language is picked.
 
 ## Deploy (Vercel)
-Push to GitHub, import the repo in Vercel, deploy. For the Claude buttons add `ANTHROPIC_API_KEY` (optional; without it the page uses plain templates).
+Push to GitHub, import the repo in Vercel, deploy. For the AI wording buttons add `GEMINI_API_KEY / OPENROUTER_API_KEY` (optional; without one of these keys the page uses plain templates).
