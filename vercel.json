@@ -1,4 +1,8 @@
 {
   "outputDirectory": "public",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/app", "destination": "/", "permanent": false },
+    { "source": "/app.html", "destination": "/", "permanent": false }
+  ]
 }

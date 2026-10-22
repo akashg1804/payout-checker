@@ -1,62 +1,64 @@
-# Payout Checker
+# AFTER.
 
-A decision board for small restaurant and cloud-kitchen owners who sell on Swiggy and Zomato.
+From payout statement to decision. For small restaurant and cloud-kitchen owners in India who sell on Swiggy and Zomato.
 
-Add your **Swiggy payout statement** (.xlsx) and your **Zomato business report** (.csv). You get three decisions:
+Add your **Swiggy payout statement** (.xlsx) and, if you have it, your **Zomato business report** (.csv). AFTER. shows what you kept from every ₹100, three things worth knowing (coupons, platforms, timing), what to test next, and what to ask Swiggy about. Files are read in your browser and never uploaded.
 
-1. **Are my Swiggy coupons worth it?** How many coupon orders must have been *extra* for the coupons to break even, given your food cost.
-2. **Which app leaves me more per order?** Swiggy comes from the payout statement. Zomato's take-home is estimated from the commission you enter, because the Zomato report has no commission or fees.
-3. **When should I push?** Orders by time of day on both apps.
+Live: https://payout-checker.vercel.app
 
-A side panel lists what to ask Swiggy about (coupon cost, coupon orders at the stated minimum, cancellation charges, repeated ad charges) and drafts a message you send yourself.
+## The pages
+| Page | What it does |
+|---|---|
+| `/` (`public/index.html`) | The story: the problem (a payout full of numbers), the answer (see, decide, learn) and a link into the demo. No files are read here. |
+| `/demo` (`public/demo.html`) | The working app. **Run the demo** uses made-up data; **Use it instead** reads your own Swiggy and Zomato files. Shows what you kept per ₹100, where the rest went, three decision cards (coupons, platforms, timing), what to ask Swiggy with a drafted message, and a **Save this payout** button. |
+| `/actions` (`public/actions.html`) | What to do: six moves (coupons, platforms, timing, fees, measure, learn), using the headlines from the last result shown on `/demo` in this browser. One change at a time, then bring the next payout back. |
+| `/insights` (`public/insights.html`) | Payout memory: the payouts you saved, newest first, with kept per ₹100, orders, the change since the previous one, and the decision you made. |
 
-Files are read in the browser and never uploaded.
+`/app` and `/app.html` (the old page) redirect to `/`.
 
-## Job to be done
-When I get my Swiggy payout and Zomato report, I want to see what I actually keep and which discounts and apps are worth it, so I can make better decisions in minutes instead of spending 1-1.5 hours a week (one owner's estimate).
+## Memory: only dates and totals, on your device
+Memory lives in this browser's `localStorage`. Nothing is sent anywhere.
+- **`after_payouts`** (saved only when you press **Save this payout**, up to 12): the period dates, sales, payout, kept per ₹100, orders, coupon share and the decision text.
+- **`after_current`** (written each time a payout is shown, so `/actions` can read it): the same kind of dates and totals, order counts per time of day, and the advice headlines.
+- **Never stored:** order rows, order IDs, customer details or the files themselves.
 
-## Current workflow -> future workflow
-Today: download the reports, check lines by hand, guess whether coupons and ads are worth it, raise a ticket if something looks off.
-With this: upload two files, enter food cost and commission, read three decisions and what to try next. Hand-checking disappears. The owner still decides and sends any message.
-
-## Architecture: Input -> AI -> Logic -> Action -> Output
-- **Input:** the two files, read in the browser (SheetJS), plus two numbers the owner types (food cost %, Zomato commission %).
-- **AI:** explains the decisions in English, Hindi or Kannada and drafts the support message. It sees only summary numbers.
-- **Logic (plain code):** recomputes every deduction, flags unusual items, computes coupon break-even and the per-order comparison, and checks the Zomato report's swapped labels by testing the arithmetic.
-- **Action:** shows the board; the owner copies a drafted message and sends it through Swiggy's own channel.
-- **Output:** three decisions, each with the evidence and a "try next" experiment.
+## How it works
+- **Input:** the files, read in the browser with SheetJS, plus two numbers you type (food cost %, Zomato commission %).
+- **Logic (plain code, `core.js`):** recomputes every deduction, checks the statement's own arithmetic, stops with a clear message if totals don't reconcile, works out coupon break-even, Swiggy vs Zomato per order (Zomato is an estimate), and orders by time of day. `advise()` picks Do / Measure / Stop for each decision.
+- **AI (optional, `api/claude.js`):** can re-word the advice and draft the support message. It sees only summary numbers. `checkText()` throws out any wording with a number that isn't in your data. Without a key, the pages use the plain wording.
+- **Action:** you decide, and you send any message to Swiggy yourself.
 
 ## What stays human
-Whether coupons really brought extra orders, the real commission and food cost, and sending any message.
-
-## Why AI here, and why not more
-Arithmetic must be exact, so it is code. AI is used where wording and judgement matter: plain-language explanation in the owner's language and a drafted message. The Zomato report's labels can be wrong (orders and sales swapped); code detects this by checking the discount arithmetic.
+Whether coupons really brought extra orders, your real commission and food cost, and sending any message.
 
 ## Failure cases
 1. A wrong file gives a clear error and no numbers.
-2. Zomato figures are estimates: if the commission entered is wrong, the comparison moves. The board says so and shows the break-even commission.
-3. A mismatch flag is a question, never a claim of wrongdoing. The owner checks before sending anything.
+2. Zomato figures are estimates: if the commission you enter is off, the comparison moves. The page shows the break-even commission.
+3. A mismatch is a question to ask, never a claim of wrongdoing.
 
-## Limits
-One outlet, one month, Swiggy payout plus Zomato report only. No evidence yet that owners will pay. Zomato take-home is estimated, and the board leaves out gateway fees and TDS on Zomato.
+## Limits (honest)
+- Tested on **one real Swiggy statement from one outlet**. No evidence yet that owners will pay.
+- Zomato's report has no commission or fees, so Zomato take-home is always an **estimate**, and it leaves out gateway fees and TDS.
+- **Memory has no delete button yet.** To clear it, clear this site's data in your browser. It is per browser and per device, with no sync.
+- `after_current` is written automatically whenever a result is shown; only the history (`after_payouts`) waits for **Save this payout**.
+- Demo results can be saved into the same history as real ones.
+- The comparison in `/insights` is simple (kept per ₹100 against the previous saved payout). It does not adjust for periods of different lengths, and Zomato is not in the memory.
+- The pages have **no language picker**, so advice shows in English. The Hindi and Kannada wording code exists but is not reachable from the pages, and was never run against a real AI key.
+- `public/memory.js`, `public/style.css` and `public/fonts/` belonged to the old `/app` page and are not loaded by the current pages. `tests/memory.test.js` no longer runs: the test loader stopped loading `memory.js` in commit `3dc37a8`.
+- `npm test` currently has **1 failing test**: commit `9c3bf74` changed the headline to "You keep ₹… of every ₹100 sold on Swiggy." and the test still expects the old wording.
 
 ## What's next
-A menu with cost per portion, or monthly purchase bills, to replace the typed food cost; several months of history; and dish-level profit if an item-level export is available. Zomato only sends the business report, so its commission stays an estimate (shown as a range).
+A delete button for memory, a second real statement from another outlet, period-aware comparisons, Zomato in the memory, and a menu or purchase bills to replace the typed food cost.
 
 ## Run locally
     npm install
-    npm run dev                      # http://localhost:3000 (uses GEMINI_API_KEY from .env.local if present)
+    npm run dev                      # http://localhost:3000 (pages are /, /demo, /actions, /insights)
     npm run dev -- --fake=bad        # fake AI that invents a number: the checker must catch it
                                      # other modes: good, junk, slow, down
     npm test                         # parsing, decisions, advice rules, number checker, wrong files
     npm run check -- path/to/swiggy.xlsx path/to/zomato.csv 35 20
 
-Copy `.env.example` to `.env.local` and add your key. `.env.local` is git-ignored. Keep real statements outside this folder.
-
-## How the advice works
-`advise()` in core.js picks Do / Measure / Stop for each decision from computed numbers. The AI model only re-words it in English, Hindi or Kannada. `checkText()` then checks every number in the AI model's text against what the AI model was sent (Hindi and Kannada digits and Indian commas included). Any block that fails, uses a banned word, or comes back incomplete shows the plain version with a note. If the AI model is unavailable or takes more than 12 seconds, the board stays in plain English.
-
-**Not verified yet:** the AI model's Hindi and Kannada wording has never been run against the real API, because no API key was available during the build. The number checker and the fallback were tested with the fake AI modes (`npm run dev -- --fake=bad`) on a real statement. **Without a key, the page shows the advice in plain English** and says so at the top of the board, whichever language is picked.
+The local server doesn't read `vercel.json`, so the `/app` redirect only works on Vercel. Keep real statements outside this folder (`*.xlsx` and `*.csv` are git-ignored).
 
 ## Deploy (Vercel)
-Push to GitHub, import the repo in Vercel, deploy. For the AI buttons add `GEMINI_API_KEY` (optional; without it the page uses plain templates).
+Push to GitHub; Vercel deploys `master`. The AI wording is optional: set `OPENROUTER_API_KEY` or `GEMINI_API_KEY` in Vercel > Project > Settings > Environment Variables. Without one, the pages use plain wording.
