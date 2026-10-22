@@ -377,7 +377,7 @@ function setupProductTabs(){
   const root=$('#board'); if(!root)return;
   const groups={analysis:['result-hero','cards-section','action-section'],flags:['ask-section','audit'],insights:['weeks-section','context-section','memory-section']};
   Object.entries(groups).forEach(([tab,classes])=>classes.forEach(cls=>root.querySelectorAll('.'+cls).forEach(node=>{node.dataset.tabPanel=tab;node.classList.toggle('active',tab==='analysis');node.hidden=tab!=='analysis'})));
-  const tabs=el('nav',{class:'product-tabs','aria-label':'Payout workspace'},...Object.keys(groups).map((tab,i)=>{const b=el('button',{type:'button',class:'product-tab'+(i===0?' active':''),'aria-selected':i===0?'true':'false'},tab[0].toUpperCase()+tab.slice(1));b.addEventListener('click',()=>{root.querySelectorAll('.product-tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');root.querySelectorAll('[data-tab-panel]').forEach(x=>x.classList.toggle('active',x.dataset.tabPanel===tab);x.hidden=x.dataset.tabPanel!==tab)});return b;}));
+  const tabs=el('nav',{class:'product-tabs','aria-label':'Payout workspace'},...Object.keys(groups).map((tab,i)=>{const b=el('button',{type:'button',class:'product-tab'+(i===0?' active':''),'aria-selected':i===0?'true':'false'},tab[0].toUpperCase()+tab.slice(1));b.addEventListener('click',()=>{root.querySelectorAll('.product-tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');root.querySelectorAll('[data-tab-panel]').forEach(x=>{x.classList.toggle('active',x.dataset.tabPanel===tab);x.hidden=x.dataset.tabPanel!==tab})});return b;}));
   root.prepend(tabs);
 }
 async function askClaude(task,payload){try{const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task,lang,payload}),signal:AbortSignal.timeout(task==='ask'?23000:12000)});if(!r.ok)return null;const j=await r.json();return j&&typeof j.text==='string'&&j.text?j.text:null}catch(e){return null}}
@@ -404,6 +404,7 @@ $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
+
 
 
 
