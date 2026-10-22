@@ -168,7 +168,7 @@ function weeksSection(trend) {
     el('div', { class: 'eyebrow' }, 'ORDERS · WEEK BY WEEK'),
     el('h2', {}, 'How many orders each week?'),
     el('p', { class: 'weeks-sub' }, 'Delivered orders per week in this statement. A partial week covers fewer days, so do not set it against a complete one.'),
-    el('div', { class: 'scroll' }, el('table', { class: 'week-table' }, el('thead', {}, el('tr', {}, el('th', {}, 'Week'), el('th', {}, 'Orders'), el('th', {}, 'Sales'))), el('tbody', {}, rows))),
+    chart,\n    el('div', { class: 'scroll' }, el('table', { class: 'week-table' }, el('thead', {}, el('tr', {}, el('th', {}, 'Week'), el('th', {}, 'Orders'), el('th', {}, 'Sales'))), el('tbody', {}, rows))),
     W.length === 1 ? note('This file covers one week, so there is nothing to compare yet.') : null,
     trend ? el('p', { class: 'trend-line' }, trend.line) : null,
     trend ? note(trend.basis) : null);
@@ -208,7 +208,7 @@ function priceDistanceSection() {
     : el('div', { class: 'distance-card' }, el('div', { class: 'eyebrow' }, 'DELIVERY DISTANCE'), el('p', {}, 'This statement has no usable delivery-distance data.'));
   return el('section', { class: 'context-section', id: 'order-economics' },
     el('div', { class: 'section-head' }, el('div', { class: 'eyebrow' }, 'ORDER ECONOMICS'), el('h2', {}, 'Price changes what you keep.'), el('p', {}, 'Higher order value does not automatically mean higher profit. These payout amounts are before food cost.')),
-    el('div', { class: 'context-grid' }, el('div', { class: 'price-card' }, el('div', { class: 'eyebrow' }, 'PRICE POINTS'), prices.length ? el('div', { class: 'price-list' }, ...priceRows) : note('No item price points were available in this statement.'), el('p', { class: 'note' }, 'Average kept is the payout per order after statement deductions; it does not subtract ingredients or other operating costs.')), distanceCard));
+    el('div', { class: 'context-grid' }, el('div', { class: 'price-card' }, el('div', { class: 'eyebrow' }, 'PRICE POINTS'), priceChart, prices.length ? el('div', { class: 'price-list' }, ...priceRows) : note('No item price points were available in this statement.'), el('p', { class: 'note' }, 'Average kept is the payout per order after statement deductions; it does not subtract ingredients or other operating costs.')), distanceCard));
 }
 function questionPayload(question) {
   const d = decide(A, Z, inp), sw = d.swCoupon;
@@ -403,6 +403,7 @@ $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
+
 
 
 
