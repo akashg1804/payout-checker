@@ -111,7 +111,7 @@ function handleSwiggy(file) {
   const reader = new FileReader();
   reader.onerror = () => { err.textContent = 'Couldn\u2019t read the Swiggy file. Try downloading it again.'; };
   reader.onload = e => {
-    leaveDemo();
+    leaveDemo(); currentTab = 'analysis';
     try {
       const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
       D = parseWorkbook(wb); A = analyze(D); isSample = false;
@@ -380,10 +380,10 @@ function render(){
   root.append(note('Files are read in your browser. Calculations are deterministic; AI is only used to reword advice when available.','fine'));
   if(isSample){
     const steps=[
-      ['See the payout',()=>goTo($('.result-hero'))],
-      ['Read the decisions',()=>goTo($('.cards-section'))],
-      ['Keep the memory',()=>goTo($('.memory-section'))],
-      ['Test your own guess',()=>{c1.open=true;couponOpen=true;goTo($('#meter'));const m=$('#meterRange');if(m)m.focus({preventScroll:true})}]
+      ['See the payout',()=>{showTab('analysis');goTo($('.result-hero'))}],
+      ['Read the decisions',()=>{showTab('analysis');goTo($('.cards-section'))}],
+      ['Keep the memory',()=>{showTab('insights');goTo($('.memory-section'))}],
+      ['Test your own guess',()=>{showTab('analysis');c1.open=true;couponOpen=true;goTo($('#meter'));const m=$('#meterRange');if(m)m.focus({preventScroll:true})}]
     ];
     const btns=steps.map(([label,fn],i)=>el('button',{type:'button',onclick:e=>{btns.forEach(b=>b.removeAttribute('aria-current'));e.currentTarget.setAttribute('aria-current','step');fn()}},el('b',{},String(i+1)),label));
     root.prepend(el('nav',{class:'demo-guide','aria-label':'Demo steps'},el('span',{class:'dg-label'},'Demo guide'),...btns));
@@ -391,12 +391,28 @@ function render(){
   setupProductTabs();
   schedulePhrase();
 }
-function setupProductTabs(){
-  const root=$('#board'); if(!root)return;
-  const groups={analysis:['result-hero','cards-section','action-section'],flags:['ask-section','audit'],insights:['weeks-section','context-section','memory-section']};
-  Object.entries(groups).forEach(([tab,classes])=>classes.forEach(cls=>root.querySelectorAll('.'+cls).forEach(node=>{node.dataset.tabPanel=tab;node.classList.toggle('active',tab==='analysis');node.hidden=tab!=='analysis'})));
-  const tabs=el('nav',{class:'product-tabs','aria-label':'Payout workspace'},...Object.keys(groups).map((tab,i)=>{const b=el('button',{type:'button',class:'product-tab'+(i===0?' active':''),'aria-selected':i===0?'true':'false'},tab[0].toUpperCase()+tab.slice(1));b.addEventListener('click',()=>{root.querySelectorAll('.product-tab').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-selected',x===b?'true':'false')});root.querySelectorAll('[data-tab-panel]').forEach(x=>{x.classList.toggle('active',x.dataset.tabPanel===tab);x.hidden=x.dataset.tabPanel!==tab});document.querySelectorAll('[data-workspace-tab]').forEach(x=>x.classList.toggle('active',x.dataset.workspaceTab===tab));});return b;}));
+// The three views of a payout: Analysis, Flags, Insights. One switcher for the sidebar, the tab bar and the demo guide.
+let currentTab = 'analysis';
+const TAB_GROUPS = { analysis: ['result-hero', 'cards-section', 'action-section'], flags: ['ask-section', 'audit'], insights: ['weeks-section', 'context-section', 'memory-section'] };
+function showTab(tab) {
+  if (!TAB_GROUPS[tab]) tab = 'analysis';
+  currentTab = tab;
+  const root = $('#board'); if (root) {
+    root.querySelectorAll('.product-tab').forEach(x => { const on = x.dataset.tab === tab; x.classList.toggle('active', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
+    root.querySelectorAll('[data-tab-panel]').forEach(x => { const on = x.dataset.tabPanel === tab; x.classList.toggle('active', on); x.hidden = !on; });
+  }
+  document.querySelectorAll('[data-workspace-tab]').forEach(x => { const on = x.dataset.workspaceTab === tab; x.classList.toggle('active', on); if (on) x.setAttribute('aria-current', 'true'); else x.removeAttribute('aria-current'); });
+}
+function setupProductTabs() {
+  const root = $('#board'); if (!root) return;
+  Object.entries(TAB_GROUPS).forEach(([tab, classes]) => classes.forEach(cls => root.querySelectorAll('.' + cls).forEach(node => { node.dataset.tabPanel = tab; })));
+  const tabs = el('nav', { class: 'product-tabs', 'aria-label': 'Payout workspace' }, ...Object.keys(TAB_GROUPS).map(tab => {
+    const b = el('button', { type: 'button', class: 'product-tab', 'data-tab': tab, 'aria-selected': 'false' }, tab[0].toUpperCase() + tab.slice(1));
+    b.addEventListener('click', () => showTab(tab));
+    return b;
+  }));
   root.prepend(tabs);
+  showTab(currentTab); // a redraw (food cost, language) keeps the view the owner was on
 }
 async function askClaude(task,payload){try{const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task,lang,payload}),signal:AbortSignal.timeout(task==='ask'?23000:12000)});if(!r.ok)return null;const j=await r.json();return j&&typeof j.text==='string'&&j.text?j.text:null}catch(e){return null}}
 const whyPlain=c=>c.bad.length?'AI wording had an unsupported number ('+c.bad[0]+'), so the verified plain version is shown.':c.banned?'AI wording used a banned term (“'+c.banned+'”), so the verified plain version is shown.':'AI wording left something out, so the verified plain version is shown.';
@@ -417,11 +433,13 @@ Thank you,
 async function doDraft(){const out=$('#draftOut'),btn=$('#draftBtn'),why=$('#draftNote');btn.disabled=true;out.value='Drafting…';why.textContent='';const f=draftContext(parseInt($('#flagSel').value,10));const payload={period:A.from+' to '+A.to,item:f.neutral||f.title,detail:f.why,notes:f.lines||[],orders:f.orders.slice(0,15),more_orders:Math.max(0,f.orders.length-15)};const t=await askClaude('draft',payload);const c=t?checkText(t,payload):null;if(c&&c.ok)out.value=t;else{out.value=fallbackDraft(f);why.textContent=c?whyPlain(c):'Claude isn’t available right now, so this is a plain verified template.'}btn.disabled=false}
 function copyDraft(){const t=$('#draftOut');t.select();try{navigator.clipboard.writeText(t.value)}catch(e){document.execCommand('copy')}}
 
+document.querySelectorAll('[data-workspace-tab]').forEach(b=>b.addEventListener('click',()=>{if(!A)return;showTab(b.dataset.workspaceTab);goTo($('.product-tabs'))}));
+showTab('analysis');
 $('#sampleSet')?.addEventListener('change',()=>{if(isSample)$('#sampleBtn').click()});
 $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 // the Sample menu picks which made-up week to run; changing it re-runs the demo, but never replaces real files
-$('#sampleBtn').addEventListener('click',()=>{D=makeSample(($('#sampleSet')||{}).value||'base');A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
+$('#sampleBtn').addEventListener('click',()=>{currentTab='analysis';D=makeSample(($('#sampleSet')||{}).value||'base');A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
 
 
