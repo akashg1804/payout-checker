@@ -223,7 +223,7 @@ Object.assign(I18N_DICT.Hindi, {
   "How many orders each day?": "हर दिन कितने ऑर्डर?",
   "How many orders each week?": "हर हफ़्ते कितने ऑर्डर?",
   "How they paid": "भुगतान कैसे हुआ",
-  "I started this": "मैंने यह शुरू किया",
+  "Start this test →": "यह टेस्ट शुरू करें →",
   "If discounts are the biggest leak, change the offer without guessing.": "अगर डिस्काउंट सबसे बड़ा रिसाव है, तो अंदाज़े के बिना ऑफ़र बदलें।",
   "If you start a coupon, note your orders now: about {W} a week.": "कूपन शुरू करें तो अभी के ऑर्डर नोट कर लें: करीब {W} प्रति हफ़्ते।",
   "If your commission is above {cs}%, Swiggy leaves more.": "अगर आपका कमीशन {cs}% से ऊपर है, तो Swiggy पर ज़्यादा बचता है।",

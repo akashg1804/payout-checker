@@ -223,7 +223,7 @@ Object.assign(I18N_DICT.Kannada, {
   "How many orders each day?": "ಪ್ರತಿ ದಿನ ಎಷ್ಟು ಆರ್ಡರ್‌ಗಳು?",
   "How many orders each week?": "ಪ್ರತಿ ವಾರ ಎಷ್ಟು ಆರ್ಡರ್‌ಗಳು?",
   "How they paid": "ಪಾವತಿ ಹೇಗೆ",
-  "I started this": "ನಾನು ಇದನ್ನು ಆರಂಭಿಸಿದೆ",
+  "Start this test →": "ಈ ಪರೀಕ್ಷೆ ಆರಂಭಿಸಿ →",
   "If discounts are the biggest leak, change the offer without guessing.": "ರಿಯಾಯಿತಿಗಳೇ ದೊಡ್ಡ ಸೋರಿಕೆಯಾದರೆ, ಊಹಿಸದೆ ಆಫರ್ ಬದಲಿಸಿ.",
   "If you start a coupon, note your orders now: about {W} a week.": "ಕೂಪನ್ ಆರಂಭಿಸಿದರೆ ಈಗಿನ ಆರ್ಡರ್‌ಗಳನ್ನು ಗಮನಿಸಿ: ವಾರಕ್ಕೆ ಸುಮಾರು {W}.",
   "If your commission is above {cs}%, Swiggy leaves more.": "ನಿಮ್ಮ ಕಮಿಷನ್ {cs}% ಕ್ಕಿಂತ ಹೆಚ್ಚಿದ್ದರೆ Swiggy ಯಲ್ಲಿ ಹೆಚ್ಚು ಉಳಿಯುತ್ತದೆ.",
