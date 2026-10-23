@@ -5,7 +5,7 @@ AFTER. ("from payout statement to decision") is for small restaurant and cloud-k
 
 ## Pages
 - `/` = `public/index.html`: a one-line redirect to `/demo`. The old story page is gone.
-- `/demo` = `public/demo.html`: the working app. It opens with the demo already run. Loads `core.js` and `app.js`. Tabs: Analysis, Flags, Insights (the orders chart, weekly for long statements and daily for a one-week payout, price points and distance are under Insights). Made-up demo data (a Sample menu of four separate one-week payouts, Mon to Sun, that tell one story: 20% coupon, coupon halved, coupons off, small coupon back; "Save all four demo weeks" fills the Memory page) or the owner's own files. Has the break-even meter, a demo guide, an Ask box, and **Save this payout**.
+- `/demo` = `public/demo.html`: the working app. It opens empty; "Run the demo" fills it and scrolls to the results. Loads `core.js` and `app.js`. Tabs: Analysis, Flags, Insights (the orders chart, weekly for long statements and daily for a one-week payout, price points and distance are under Insights). Made-up demo data (a Sample menu of four separate one-week payouts, Mon to Sun, that tell one story: 20% coupon, coupon halved, coupons off, small coupon back; "Save all four demo weeks" fills the Memory page) or the owner's own files. Has the break-even meter, a demo guide, an Ask box, and **Save this payout**.
 - `/actions` = `public/actions.html`: what to do next, built from `localStorage.after_current`.
 - `/insights` = `public/insights.html`: payout memory, built from `localStorage.after_payouts`.
 - `/app` and `/app.html` redirect to `/` (`vercel.json`). The old `app.html` is deleted; `memory.js`, `style.css` and `fonts/` belonged to it and are not loaded by any current page.
