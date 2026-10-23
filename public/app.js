@@ -384,8 +384,7 @@ function setupProductTabs(){
 }
 async function askClaude(task,payload){try{const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task,lang,payload}),signal:AbortSignal.timeout(task==='ask'?23000:12000)});if(!r.ok)return null;const j=await r.json();return j&&typeof j.text==='string'&&j.text?j.text:null}catch(e){return null}}
 const whyPlain=c=>c.bad.length?'AI wording had an unsupported number ('+c.bad[0]+'), so the verified plain version is shown.':c.banned?'AI wording used a banned term (“'+c.banned+'”), so the verified plain version is shown.':'AI wording left something out, so the verified plain version is shown.';
-let phraseTimer=null;function schedulePhrase(){clearTimeout(phraseTimer);phraseTimer=setTimeout(phraseBoard,300)}function phraseBoard(){if(!ADV||!$('#aiStatus'))return;$('#aiStatus').textContent=lang==='English'?'Verified from the numbers in your payout.':'Claude wording is optional; the calculations are verified.'}
-function draftContext(i){if(i<0||!A.flags[i])return{title:'General question about this payout statement',why:'',ask:'',orders:[],lines:[]};return A.flags[i]}
+let phraseTimer=null;function schedulePhrase(){clearTimeout(phraseTimer);phraseTimer=setTimeout(phraseBoard,300)}async function phraseBoard(){if(!ADV||!$('#aiStatus'))return;if(lang==='English'){$('#aiStatus').textContent='Verified from the numbers in your payout.';return}$('#aiStatus').textContent='Translating the verified wording…';const payload=phrasePayload(ADV),raw=await askClaude('phrase',payload);if(!raw){$('#aiStatus').textContent='Translation unavailable; verified English wording is shown.';return}try{const clean=raw.replace(/^```json\s*|^```|```$/g,'').trim(),translated=JSON.parse(clean),check=checkText(clean,payload);if(!check.ok)throw new Error('translation check failed');const lead=document.querySelector('.result-hero h1');if(lead&&translated.lead&&translated.lead.head)lead.textContent=translated.lead.head;const cards=[...document.querySelectorAll('.info-card h2')];['d1','d2','d3'].forEach((k,i)=>{const a=translated[k]||{};if(cards[i]&&a.head)cards[i].textContent=a.head;const strong=[...document.querySelectorAll('.advice-item strong')];if(strong[i*3]&&a.do)strong[i*3].textContent=a.do;if(strong[i*3+1]&&a.measure)strong[i*3+1].textContent=a.measure;if(strong[i*3+2]&&a.stop)strong[i*3+2].textContent=a.stop});$('#aiStatus').textContent='Verified wording translated to '+LANG_NAMES[lang]+'.'}catch(e){$('#aiStatus').textContent='Translation failed its number check; verified English wording is shown.'}}function draftContext(i){if(i<0||!A.flags[i])return{title:'General question about this payout statement',why:'',ask:'',orders:[],lines:[]};return A.flags[i]}
 function fallbackDraft(f){return `Subject: Request for explanation, payout ${A.from} to ${A.to}
 
 Hello,
@@ -406,6 +405,7 @@ $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
+
 
 
 
