@@ -48,7 +48,6 @@ Whether coupons really brought extra orders, your real commission and food cost,
 - The comparison in `/insights` is simple (kept per ₹100 against the previous saved payout). It does not adjust for periods of different lengths, and Zomato is not in the memory.
 - **Languages (English, Hindi, Kannada) are built in** and switch the whole app from the picker in the header; the choice is remembered (`localStorage.after_lang`). The Hindi and Kannada wording was written by Claude and has **not been reviewed by a native speaker**. Payouts saved before this change keep their decision text in English. Drafted messages to Swiggy are always English. AI wording is still English-checked only: without a key the page shows the built-in wording. Run `npm run check:i18n` after changing any English text.
 - `public/memory.js`, `public/style.css` and `public/fonts/` belonged to the old `/app` page and are not loaded by the current pages. `tests/memory.test.js` no longer runs: the test loader stopped loading `memory.js` in commit `3dc37a8`.
-- `npm test` currently has **1 failing test**: commit `9c3bf74` changed the headline to "You keep ₹… of every ₹100 sold on Swiggy." and the test still expects the old wording.
 
 ## Supabase setup
 1. Create a Supabase project and run `supabase/schema.sql` in its SQL Editor. The table requires sign-in and applies row-level security so each user can access only their own memory.

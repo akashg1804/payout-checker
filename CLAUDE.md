@@ -20,7 +20,7 @@ AFTER. ("from payout statement to decision") is for small restaurant and cloud-k
 - `public/memory-sync.js` + `public/supabase-config.js` + `supabase/schema.sql`: optional email sign-in and cloud copy of memory. The config holds only a publishable key (safe in the browser); never put a secret or service-role key there. The table has row-level security per user.
 - `api/claude.js`: Vercel serverless function for the optional AI wording, via `OPENROUTER_API_KEY` or `GEMINI_API_KEY`. Builds the prompt from a task name (`phrase`, `draft`); never accepts a raw prompt. With no key it returns 503 and the pages use plain wording, so everything must keep working without it.
 - `scripts/dev.js`: local server (`npm run dev`, `--fake=bad|good|junk|slow|down` to test fallbacks). It does not apply `vercel.json` redirects.
-- `tests/core.test.js`: `npm test` (14 tests). Fixtures are built in memory. `tests/memory.test.js` is stale: `scripts/load-core.js` no longer loads `memory.js`, so it fails if run. `ordersTrend()` and `couponEarn()` in `core.js` are the week-by-week and break-even-meter maths, both tested.
+- `tests/core.test.js`: `npm test` (19 tests). Fixtures are built in memory. `tests/memory.test.js` is stale: `scripts/load-core.js` no longer loads `memory.js`, so it fails if run. `ordersTrend()` and `couponEarn()` in `core.js` are the week-by-week and break-even-meter maths, both tested.
 - `scripts/check.js`: `npm run check -- path/to/statement.xlsx [zomato.csv] [food%] [commission%]`.
 
 ## Rules (do not break these)
@@ -45,7 +45,6 @@ Sheets: `Payout Breakup` (summary), `Order Level` (header row has "Order ID"; 54
 1. Test the Supabase email sign-in end to end, and check its redirect URL list includes the live site.
 2. A second real statement to test parsing on another outlet.
 3. Period-aware comparisons in `/insights`, and Zomato in the memory.
-4. Period-aware comparisons beyond kept per ₹100 on `/insights`; Zomato in the memory.
 
 ## Style
 Plain language for non-technical owners. Don't add dependencies without a reason.
