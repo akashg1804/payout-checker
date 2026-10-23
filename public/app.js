@@ -44,7 +44,7 @@ const errText = (map, x, dflt) => (map[x && x.code] ? map[x.code](x.detail) : df
 function makeSample(variant = 'base') {
   const items = [249, 289, 149, 349, 199, 449, 179, 299, 249, 399, 149, 229, 329, 189];
   const hours = [20, 21, 0, 22, 13, 19, 23, 20, 1, 21, 12, 22, 19, 20];
-  // 6 orders in the partial first week (Aug 4-9), then 8, 6 and 3 in complete weeks, so the falling-orders line shows
+  // 14 delivered orders on Aug 4-17: 6 in the partial first week, 7 in the complete week of Aug 10, 1 on Aug 17
   const days = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
   const kms = [3.1, 4.7, 2.8, 5.2, 3.6, 4.1, 6.3, 3.3, 4.9, 2.9, 3.8, 4.4, 5.6, 3.0];
   const rows = [];
@@ -98,12 +98,20 @@ function makeZomatoSample(variant = 'base') {
 
 // ---------- loading files ----------
 function setStatus(id, text, ok) { const s = $(id); s.textContent = text; s.className = 'status ' + (ok ? 'ok' : ''); }
+// The moment the owner brings a real file the demo goes away, so made-up numbers never sit beside real ones
+// (before this, a real Swiggy file was compared with the demo's made-up Zomato numbers).
+function leaveDemo() {
+  if (!isSample) return;
+  A = null; D = null; Z = null; isSample = false;
+  setStatus('#swStatus', 'No Swiggy file', false); setStatus('#zStatus', 'No Zomato file', false);
+}
 function handleSwiggy(file) {
   const err = $('#err'); err.textContent = '';
   if (!file) return;
   const reader = new FileReader();
   reader.onerror = () => { err.textContent = 'Couldn\u2019t read the Swiggy file. Try downloading it again.'; };
   reader.onload = e => {
+    leaveDemo();
     try {
       const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
       D = parseWorkbook(wb); A = analyze(D); isSample = false;
@@ -123,6 +131,7 @@ function handleZomato(file) {
   const reader = new FileReader();
   reader.onerror = () => { err.textContent = 'Couldn\u2019t read the Zomato file. Try downloading it again.'; };
   reader.onload = e => {
+    leaveDemo();
     try {
       const bytes = new Uint8Array(e.target.result);
       const isExcel = (bytes[0] === 0x50 && bytes[1] === 0x4B) || (bytes[0] === 0xD0 && bytes[1] === 0xCF); // .xlsx or old .xls
@@ -162,6 +171,9 @@ function weeksSection(trend) {
   const W = (A.ins && A.ins.weeks) || [];
   if (!W.length || !A.from) return null;
   const max = Math.max(...W.map(w => w.n)) || 1;
+  // a bar per week; the table below has the same numbers, so the bars are decoration for screen readers
+  const chart = el('div', { class: 'mini-chart', 'aria-hidden': 'true' }, W.map(w => el('div', { class: 'chart-col' + (w.partial ? ' part' : '') },
+    el('strong', {}, String(w.n)), el('i', { style: 'height:' + Math.max(8, Math.round((90 * w.n) / max)) + 'px' }), el('span', {}, weekLabel(w)))));
   const rows = W.map(w => el('tr', { class: w.partial ? 'part' : '' },
     el('td', {}, el('span', { class: 'wk' }, weekLabel(w)), w.partial ? el('span', { class: 'wk-note' }, 'partial week · ' + plural(w.days, 'day', 'days')) : null),
     el('td', {}, el('span', { class: 'wk-cell' }, el('span', { class: 'wk-bar', 'aria-hidden': 'true' }, el('i', { style: 'width:' + Math.max(4, (100 * w.n) / max) + '%' })), el('b', {}, String(w.n)))),
@@ -202,6 +214,9 @@ function meterBlock(sw) {
 
 function priceDistanceSection() {
   const prices = A.ins.prices || [], distance = A.ins.distance;
+  const maxKept = Math.max(...prices.map(p => Math.abs(p.avgKept)), 1);
+  const priceChart = prices.length ? el('div', { class: 'price-chart', 'aria-hidden': 'true' }, prices.map(p => el('div', { class: 'price-chart-row' },
+    el('span', {}, inr0(p.price)), el('i', { style: 'width:' + Math.max(4, Math.round((100 * Math.abs(p.avgKept)) / maxKept)) + '%' }), el('b', {}, inr0(p.avgKept))))) : null;
   const priceRows = prices.map(p => el('div', { class: 'price-row' },
     el('div', {}, el('strong', {}, inr0(p.price)), el('span', {}, plural(p.n, 'order', 'orders'))),
     el('div', { class: 'price-values' }, el('span', {}, 'Avg. kept'), el('strong', {}, inr0(p.avgKept))),
@@ -355,6 +370,7 @@ function render(){
   root.append(askNumbersSection());
   const copyStatus=el('p',{class:'copy-status',role:'status'});
   const copyBtn=el('button',{class:'button ghost',type:'button',onclick:()=>copySummary(copyStatus)},'Copy a summary');
+  const saveBtn=el('button',{class:'button',type:'button',onclick:e=>savePayout(e.currentTarget)},'Save this payout');
   root.append(el('section',{class:'memory-section'},el('div',{class:'memory-copy'},el('div',{class:'eyebrow'},'THE MEMORY LOOP'),el('h2',{},'The next payout should answer what happened last time.'),el('p',{},'Save this result. On the next run, the prototype can compare the period and decision in this browser. No order rows are stored.')),el('div',{class:'memory-actions'},copyBtn,saveBtn,copyStatus,el('a',{class:'button ghost',href:'/insights.html'},'Open payout memory →'))));
   const flagList=A.flags.map((f,i)=>el('article',{class:'flag'},el('h4',{},f.title),f.amount>0?el('strong',{},inr(f.amount)):null,el('p',{},f.why),f.lines.length?el('ul',{},f.lines.map(l=>el('li',{},l))):null,el('p',{},el('b',{},'Ask: '),f.ask),el('button',{class:'button ghost',type:'button',onclick:()=>{$('#flagSel').value=String(i);$('#draftBox').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'center'})}},'Draft message')));
   const ck=el('ul',{class:'checks'});A.checks.forEach(c=>ck.append(el('li',{},el('span',{class:'tick '+(c.ok===c.tot?'ok':'no')},c.ok===c.tot?'Matches':'Differs'),el('span',{},(c.tot>1?c.ok+' of '+c.tot+' orders: ':'')+c.label))));
@@ -401,9 +417,11 @@ Thank you,
 async function doDraft(){const out=$('#draftOut'),btn=$('#draftBtn'),why=$('#draftNote');btn.disabled=true;out.value='Drafting…';why.textContent='';const f=draftContext(parseInt($('#flagSel').value,10));const payload={period:A.from+' to '+A.to,item:f.neutral||f.title,detail:f.why,notes:f.lines||[],orders:f.orders.slice(0,15),more_orders:Math.max(0,f.orders.length-15)};const t=await askClaude('draft',payload);const c=t?checkText(t,payload):null;if(c&&c.ok)out.value=t;else{out.value=fallbackDraft(f);why.textContent=c?whyPlain(c):'Claude isn’t available right now, so this is a plain verified template.'}btn.disabled=false}
 function copyDraft(){const t=$('#draftOut');t.select();try{navigator.clipboard.writeText(t.value)}catch(e){document.execCommand('copy')}}
 
+$('#sampleSet')?.addEventListener('change',()=>{if(isSample)$('#sampleBtn').click()});
 $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
-$('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
+// the Sample menu picks which made-up week to run; changing it re-runs the demo, but never replaces real files
+$('#sampleBtn').addEventListener('click',()=>{D=makeSample(($('#sampleSet')||{}).value||'base');A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
 
 

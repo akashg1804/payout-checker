@@ -9,7 +9,7 @@ Live: https://payout-checker.vercel.app
 ## The pages
 | Page | What it does |
 |---|---|
-| `/` (`public/index.html`) | The story: the problem (a payout full of numbers), the answer (see, decide, learn) and a link into the demo. No files are read here. |
+| `/` (`public/index.html`) | Opens the workspace: a one-line redirect to `/demo`. |
 | `/demo` (`public/demo.html`) | The working app. **Run the demo** uses made-up data; **Use it instead** reads your own Swiggy and Zomato files. Shows what you kept per ₹100, where the rest went, three decision cards (coupons, platforms, timing), what to ask Swiggy with a drafted message, and a **Save this payout** button. |
 | `/actions` (`public/actions.html`) | What to do: six moves (coupons, platforms, timing, fees, measure, learn). Mark ?I started this? with a date and choose a measure; AFTER. compares the next full payout period with the saved baseline. |
 | `/insights` (`public/insights.html`) | Payout memory: the payouts you saved, newest first, with kept per ₹100, orders, the change since the previous one, and the decision you made. |
@@ -42,7 +42,7 @@ Whether coupons really brought extra orders, your real commission and food cost,
 ## Limits (honest)
 - Tested on **one real Swiggy statement from one outlet**. No evidence yet that owners will pay.
 - Zomato's report has no commission or fees, so Zomato take-home is always an **estimate**, and it leaves out gateway fees and TDS.
-- **Memory is local only:** it stays in this browser and device, with no account sync. Use `/insights` to delete records, export a backup, restore one, or clear all local memory.
+- **Memory is local unless you sign in.** By default it stays in this browser and device. If Supabase is configured and the owner signs in by email link, the same compact summaries sync to their account (see Supabase setup). That sign-in flow has not been tested end to end here, and the Supabase redirect URLs must include the live site. Use `/insights` to delete records, export a backup, restore one, or clear all memory.
 - `after_current` is written automatically whenever a result is shown; only the history (`after_payouts`) waits for **Save this payout**.
 - Demo results can be saved into the same history as real ones and are marked as demo data.
 - The comparison in `/insights` is simple (kept per ₹100 against the previous saved payout). It does not adjust for periods of different lengths, and Zomato is not in the memory.
@@ -60,7 +60,7 @@ The live Supabase connection is optional until project credentials are configure
 
 ## Run locally
     npm install
-    npm run dev                      # http://localhost:3000 (pages are /, /demo, /actions, /insights)
+    npm run dev                      # http://localhost:3000, open /demo.html, /actions.html, /insights.html (the local server has no clean URLs, so /demo alone shows Not found)
     npm run dev -- --fake=bad        # fake AI that invents a number: the checker must catch it
                                      # other modes: good, junk, slow, down
     npm test                         # parsing, decisions, advice rules, number checker, wrong files
