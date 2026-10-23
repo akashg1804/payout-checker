@@ -75,7 +75,9 @@ function makeSample(variant = 'base') {
   });
   rows.push(mk(items.length + 1, 0, 0, '', 24, null, 'cancelled', 'RESTAURANT'));
   if (variant !== 'base') {
-    const factor = variant === 'strong' ? 1.22 : 0.78;
+    const factor = variant === 'week2' ? 1.22 : variant === 'week3' ? 0.78 : variant === 'week4' ? 1.05 : 1;
+    const shift = ({week1:0,week2:7,week3:14,week4:21}[variant] || 0);
+    rows.forEach(r => { if (shift) r.date = new Date(Date.parse(r.date.replace(' ','T')+'Z') + shift*86400000).toISOString().slice(0,19).replace('T',' '); } );
     rows.forEach(r => { ['item','pack','share','net','gst','paid','payable','base','comm','pcc','canc','gstFee','totalFees','tds','taxes','netPayout'].forEach(k => { if (typeof r[k] === 'number') r[k] = Math.round(r[k] * factor * 100) / 100; }); });
   }
   const breakup = { 'net payout': rows.reduce((s, r) => s + r.netPayout, 0), 'total customer paid': rows.reduce((s, r) => s + r.paid, 0) };
@@ -90,7 +92,7 @@ function makeZomatoSample(variant = 'base') {
   const out = { platform: 'Zomato', delivered: 60, sales: 17200, discount: 910, placed: 63, offerOrders: 30, offerSales: 8900, swapped: false,
     adsSales: 14800, adsSpend: 340, impressions: 11000, adsImpressions: 8800, menuOpens: 800, cartBuilds: 150, newU: 30, repeatU: 26, lapsedU: 7,
     parts: { breakfast: 1, lunch: 12, snacks: 4, dinner: 26, late: 20 }, rating: 4.4, ratedOrders: 9, offlineHrs: 90, lostSales: 400 };
-  if (variant !== 'base') { const factor = variant === 'strong' ? 1.22 : 0.78; ['sales','discount','offerSales','adsSales','adsSpend','lostSales'].forEach(k => { out[k] = Math.round(out[k] * factor); }); ['delivered','placed','offerOrders','impressions','adsImpressions','menuOpens','cartBuilds','newU','repeatU','lapsedU'].forEach(k => { out[k] = Math.max(1, Math.round(out[k] * factor)); }); }
+  if (variant !== 'base') { const factor = variant === 'week2' ? 1.22 : variant === 'week3' ? 0.78 : variant === 'week4' ? 1.05 : 1; ['sales','discount','offerSales','adsSales','adsSpend','lostSales'].forEach(k => { out[k] = Math.round(out[k] * factor); }); ['delivered','placed','offerOrders','impressions','adsImpressions','menuOpens','cartBuilds','newU','repeatU','lapsedU'].forEach(k => { out[k] = Math.max(1, Math.round(out[k] * factor)); }); }
   return out;
 }
 
@@ -404,6 +406,7 @@ $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 $('#sampleBtn').addEventListener('click',()=>{D=makeSample();A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
+
 
 
 
