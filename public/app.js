@@ -492,7 +492,9 @@ $('#sampleSet')?.addEventListener('change', () => { if (isSample) $('#sampleBtn'
 $('#swFile').addEventListener('change', e => handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change', e => handleZomato(e.target.files[0]));
 // the Sample menu picks which made-up week to run; changing it re-runs the demo, but never replaces real files
-$('#sampleBtn').addEventListener('click', () => { currentTab = 'analysis'; const wk = ($('#sampleSet') || {}).value || 'week1'; D = makeSample(wk); A = analyze(D); Z = makeZomatoSample(wk); isSample = true; $('#err').textContent = ''; render(); goTo($('#board')); });
+const playIn = () => { document.body.classList.add('run-anim'); setTimeout(() => document.body.classList.remove('run-anim'), 1800); };
+['swFile', 'zFile'].forEach(id => $('#' + id).addEventListener('change', playIn));
+$('#sampleBtn').addEventListener('click', () => { playIn(); currentTab = 'analysis'; const wk = ($('#sampleSet') || {}).value || 'week1'; D = makeSample(wk); A = analyze(D); Z = makeZomatoSample(wk); isSample = true; $('#err').textContent = ''; render(); goTo($('#board')); });
 ['fc', 'comm'].forEach(id => $('#' + id).addEventListener('input', e => { const v = parseFloat(e.target.value); if (Number.isFinite(v) && v >= 0 && v < 100) { inp[id] = v; if (A) render(); } }));
 // a new language: show the status lines again and redraw the board (the static page text is handled by i18n.js)
 window.addEventListener('after:lang', () => { refreshStatuses(); if (A) render(); });
