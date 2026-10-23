@@ -11,7 +11,7 @@ function hbars(rows) {
     el('b', {}, r.text))));
 }
 // One bar split into parts, with a legend that says each part in words.
-const STACK_COLORS = ['#075B49', '#62D2B0', '#D9FF36', '#7C9A8E', '#A9BFB5'];
+const STACK_COLORS = ['#075B49', '#62D2B0', '#f2a93b', '#7C9A8E', '#A9BFB5'];
 function stacked(parts) {
   const live = parts.filter(p => p.value > 0);
   return el('div', {},
