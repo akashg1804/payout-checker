@@ -11,6 +11,8 @@ AFTER. ("from payout statement to decision") is for small restaurant and cloud-k
 - `/app` and `/app.html` redirect to `/` (`vercel.json`). The old `app.html` is deleted; `memory.js`, `style.css` and `fonts/` belonged to it and are not loaded by any current page.
 
 ## Code
+- `public/i18n.js` + `i18n-hi.js` + `i18n-kn.js`: built-in translations. The English string is the key: `t(en, vars)` / `tn(n, one, many)`; `M()` in `core.js` uses the same dictionary for advice. `npm run check:i18n` fails if any phrase has no Hindi or Kannada text or loses a {hole}. Language is `localStorage.after_lang`.
+- `public/views.js`: the charts, Insights and Flags tabs on `/demo`.
 - `public/core.js`: parsing and analysis. Pure functions, no DOM. `parseWorkbook(wb)` then `analyze(data)`; `parseZomatoCsv` / `parseZomato`.
 - `decide()` in `core.js`: all decision maths (coupon break-even, per-order comparison, break-even commission).
 - `advise()` in `core.js`: rules that pick Do / Measure / Stop per decision. `checkText()`: the number checker every AI reply must pass.

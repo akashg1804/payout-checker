@@ -217,3 +217,82 @@ test('weeks: the analysis marks partial weeks and the trend reads from it', () =
   assert.match(t.basis, /^Complete weeks only: 9 orders across 3 weeks\. That is few orders/);
   assert.equal(core.ordersTrend(core.analyze(core.parseWorkbook(swiggy(rows.slice(0, 8).concat([at('2000000020', '23'), at('2000000021', '22'), at('2000000022', '21')]))))), null); // 4, 3, 4: no fall
 });
+
+// ---------- richer insights: day of week, order value, distance, small fees, food-ready, Zomato ----------
+// Six delivered orders, item total 200 each, commission 25% (50). Aug 3, 2026 is a Monday.
+//  #  when              km   long-dist fee  food-ready accurate / pressed   Swiggy One   pays
+//  1  Mon 3 Aug 20:00   1.5  -             yes / yes                       yes          upi
+//  2  Mon 3 Aug 21:00   3.0  -             no  / yes                       no           cash
+//  3  Tue 4 Aug 13:00   4.5  10            yes / no                        yes          upi
+//  4  Sat 8 Aug 20:00   5.0  10            no  / no                        yes          upi
+//  5  Sat 8 Aug 22:30   7.0  -             yes / yes                       no           cash
+//  6  Sun 9 Aug 12:00   2.0  -             yes / yes                       yes          upi
+const HEAD2 = HEAD.concat(['Long distance charges', 'Last Mile (in km)', 'MFR Accurate?', 'MFR Pressed?', 'Swiggy One Customer?', 'Order Payment Type']);
+const order2 = (id, date, km, ld, acc, press, one, pay) => {
+  const comm = 50, gstFee = 0.18 * (comm + ld), fees = comm + ld + gstFee;
+  return [id, date, 'Delivered', '', 200, 0, 0, 200, 200, 25, comm, gstFee, fees, 200 - fees, ld, km, acc, press, one, pay];
+};
+const ROWS2 = [
+  order2('3000000001', '2026-08-03 20:00:00', 1.5, 0, 'yes', 'yes', 'yes', 'upiintent'),
+  order2('3000000002', '2026-08-03 21:00:00', 3.0, 0, 'no', 'yes', 'no', 'cash'),
+  order2('3000000003', '2026-08-04 13:00:00', 4.5, 10, 'yes', 'no', 'yes', 'upiintent'),
+  order2('3000000004', '2026-08-08 20:00:00', 5.0, 10, 'no', 'no', 'yes', 'upiintent'),
+  order2('3000000005', '2026-08-08 22:30:00', 7.0, 0, 'yes', 'yes', 'no', 'cash'),
+  order2('3000000006', '2026-08-09 12:00:00', 2.0, 0, 'yes', 'yes', 'yes', 'upiintent')
+];
+const A2 = () => core.analyze(core.parseWorkbook(swiggy(ROWS2, HEAD2)));
+
+test('insights: orders by day of week, order value and delivery distance are counted from the rows', () => {
+  const A = A2();
+  assert.deepEqual([...A.ins.dow.map(x => x.n)], [1, 2, 1, 0, 0, 0, 2]);          // Sun..Sat: Sun 1, Mon 2, Tue 1, Sat 2
+  assert.equal(A.ins.weekend.n, 3);                                                // Fri, Sat, Sun: 2 + 1
+  assert.deepEqual([...A.ins.value.map(b => b.n)], [0, 6, 0, 0]);                  // every item total is 200: the 200-299 band
+  assert.deepEqual([...A.ins.distBuckets.map(b => b.n)], [1, 2, 2, 1]);            // <2: 1.5 | 2-4: 3.0, 2.0 | 4-6: 4.5, 5.0 | 6+: 7.0
+  assert.equal(A.ins.dist4.over.n, 3); assert.equal(A.ins.dist4.under.n, 3);       // over 4 km: 4.5, 5, 7
+  near(A.ins.distBuckets[3].avgKept, 200 - 50 - 0.18 * 50);                        // the 7 km order keeps 141
+});
+
+test('flags: small Swiggy fees and food-ready timing are raised as questions, with their numbers', () => {
+  const A = A2();
+  const fees = [...A.flags].find(f => f.key === 'fees'), mfr = [...A.flags].find(f => f.key === 'mfr');
+  near(fees.vars.amt, 20); assert.equal(fees.vars.n, 2);                           // 10 + 10 on two orders
+  assert.equal(fees.kind, 'money'); assert.equal(fees.items[0].key, 'longDist'); assert.equal(fees.items[0].n, 2);
+  assert.deepEqual({ ...mfr.vars }, { bad: 2, known: 6, notPressed: 2, pressKnown: 6 });
+  assert.equal(mfr.kind, 'signal'); assert.equal(mfr.amount, 0);
+  assert.equal(A.allClear, true);                                                  // the fixture reconciles, so no mismatch flag
+  // every flag carries what the screen needs to word it in another language
+  A.flags.forEach(f => { assert.ok(f.kind === 'money' || f.kind === 'signal'); assert.ok(f.vars, f.key + ' has vars'); });
+});
+
+test('insightFacts: comparisons need at least 3 orders on each side', () => {
+  const A = A2(), f = core.insightFacts(A, null);
+  assert.equal(f.dow.total, 6); assert.equal(f.dow.busiest.dow, 1);                // Monday and Saturday tie at 2: the first one wins
+  near(f.dow.weekendShare, 50);
+  assert.equal(f.time.busiest.key, 'dinner'); assert.equal(f.time.busiest.n, 3);   // 20:00, 21:00, 20:00
+  assert.equal(f.time.hi, null);                                                   // only one slot has 3 orders: nothing to compare
+  assert.equal(f.value, null);                                                     // only one order-value band is used
+  assert.equal(f.dist.compare, true); assert.equal(f.dist.over.n, 3);
+  near(f.who.members.share, (100 * 4) / 6);                                        // 4 of 6 are Swiggy One members
+  assert.equal(f.who.pay[0].key, 'upiintent'); assert.equal(f.who.pay[0].n, 4);
+  assert.equal(f.zomato, null);
+});
+
+test('extraFlags: Zomato carts, offline time and rating, and a fall in orders', () => {
+  const Z = core.parseZomatoCsv(ZCSV + '\nCart builds,40\nPlaced orders,16\nMenu opens,120\nImpressions,900\nOffline time (in hours),12\nLost sales (Rs),500\nAverage rating,3.8\nNew user orders,3\nRepeat user orders,5\nLapsed user orders,2');
+  const A = A2(), flags = [...core.extraFlags(A, Z)], keys = flags.map(f => f.key);
+  assert.ok(keys.includes('carts') && keys.includes('offline') && keys.includes('rating'));
+  const carts = flags.find(f => f.key === 'carts'); near(carts.vars.pct, 60); assert.equal(carts.vars.lost, 24);   // 40 carts, 16 orders
+  near(flags.find(f => f.key === 'offline').amount, 500);
+  const z = core.insightFacts(A, Z).zomato;
+  assert.deepEqual([...z.funnel.map(s => s.key)], ['impressions', 'menuOpens', 'cartBuilds', 'placed', 'delivered']);
+  near(z.funnel[1].rate, (100 * 120) / 900); near(z.users.repeatShare, 50);        // 5 of 10 users repeat
+  assert.equal(core.extraFlags(A, null).length, 0);                                // no Zomato report and orders are steady: nothing extra
+});
+
+test('wording: the same advice comes back in another language when a dictionary is present', () => {
+  const A = core.analyze(core.parseWorkbook(swiggy())), d = core.decide(A, null, inp);
+  const en = core.advise(A, null, d, inp), hi = core.advise(A, null, d, inp, 'Hindi');
+  assert.equal(en.lead.head, 'You keep ₹63.5 of every ₹100 sold on Swiggy.');
+  assert.equal(hi.lead.head, en.lead.head);                                        // no dictionary loaded here, so English is the fallback
+  assert.equal(core.M('Hello {name}', { name: 'Asha' }), 'Hello Asha');
+});

@@ -15,30 +15,24 @@ const pct1 = x => (Math.round(x * 10) / 10).toString();
 const pct0 = x => Math.round(x).toString();
 const plural = (n, a, b) => n + ' ' + (n === 1 ? a : b);
 
-let A = null, D = null, Z = null, isSample = false, ADV = null, lang = 'English';
+let A = null, D = null, Z = null, isSample = false, ADV = null;
 let meterGuess = 50, couponOpen = false; // the slider and the coupon card keep their state when the page redraws
 const inp = { fc: 35, comm: 20 };
-const LANG_NAMES = { English: 'English', Hindi: 'हिन्दी', Kannada: 'ಕನ್ನಡ' };
-const LABELS = {
-  English: { do: 'Do', measure: 'Measure', stop: 'Stop if' },
-  Hindi: { do: 'क्या करें', measure: 'कैसे मापें', stop: 'कब रोकें' },
-  Kannada: { do: 'ಏನು ಮಾಡಬೇಕು', measure: 'ಹೇಗೆ ಅಳೆಯಬೇಕು', stop: 'ಯಾವಾಗ ನಿಲ್ಲಿಸಬೇಕು' }
-};
+// Error messages for a wrong file. Each says what is wrong and that nothing was calculated.
 const SW_ERR = {
-  LOOKS_LIKE_ZOMATO: () => 'This looks like the Zomato business report. Put it in the Zomato box instead.',
-  NO_ORDER_SHEET: () => 'That doesn’t look like a Swiggy payout statement: there’s no “Order Level” sheet.',
-  NO_HEADER: () => 'Found the “Order Level” sheet, but not its header row (the one with “Order ID”).',
-  MISSING_COLUMNS: d => 'The “Order Level” sheet is missing ' + (d || []).join(', ') + '. Swiggy may have renamed the column.',
-  EMPTY: () => 'This statement has no delivered orders, so there’s nothing to work out.',
-  TOTALS_DONT_RECONCILE: d => 'This statement’s totals don’t add up: ' + inr(Math.max(Math.abs(d.unexplained), Math.abs(d.rowGap))) +
-    ' can’t be matched to any charge. The file may be incomplete or a format this tool doesn’t know yet. Try downloading it again.'
+  LOOKS_LIKE_ZOMATO: () => t('This looks like the Zomato business report. Put it in the Zomato box instead.'),
+  NO_ORDER_SHEET: () => t('That doesn’t look like a Swiggy payout statement: there’s no “Order Level” sheet.'),
+  NO_HEADER: () => t('Found the “Order Level” sheet, but not its header row (the one with “Order ID”).'),
+  MISSING_COLUMNS: d => t('The “Order Level” sheet is missing {cols}. Swiggy may have renamed the column.', { cols: (d || []).join(', ') }),
+  EMPTY: () => t('This statement has no delivered orders, so there’s nothing to work out.'),
+  TOTALS_DONT_RECONCILE: d => t('This statement’s totals don’t add up: {amt} can’t be matched to any charge. The file may be incomplete or a format this tool doesn’t know yet. Try downloading it again.', { amt: inr(Math.max(Math.abs(d.unexplained), Math.abs(d.rowGap))) })
 };
 const Z_ERR = {
-  LOOKS_LIKE_SWIGGY: () => 'This looks like the Swiggy payout statement. Put it in the Swiggy box instead.',
-  NO_METRICS: () => 'That doesn’t look like the Zomato business report (a CSV with Metric rows and monthly values).',
-  EMPTY: () => 'This Zomato report has no delivered orders or sales, so there’s nothing to compare.'
+  LOOKS_LIKE_SWIGGY: () => t('This looks like the Swiggy payout statement. Put it in the Swiggy box instead.'),
+  NO_METRICS: () => t('That doesn’t look like the Zomato business report (a CSV with Metric rows and monthly values).'),
+  EMPTY: () => t('This Zomato report has no delivered orders or sales, so there’s nothing to compare.')
 };
-const errText = (map, x, dflt) => (map[x && x.code] ? map[x.code](x.detail) : dflt) + ' Nothing was calculated from it.';
+const errText = (map, x, dflt) => (map[x && x.code] ? map[x.code](x.detail) : dflt) + ' ' + t('Nothing was calculated from it.');
 
 // ---------- made-up sample data (clearly labelled) ----------
 // Four weekly payouts (Mon to Sun, no overlap) that tell one story, so the graphs and the memory comparison have something to show:
@@ -102,7 +96,9 @@ function makeZomatoSample(variant = 'week1') {
 }
 
 // ---------- loading files ----------
-function setStatus(id, text, ok) { const s = $(id); s.textContent = text; s.className = 'status ' + (ok ? 'ok' : ''); }
+// A status line remembers its English template and values, so it can be shown again in another language.
+function setStatus(id, key, ok, vars) { const s = $(id); s.dataset.k = key; s.dataset.v = JSON.stringify(vars || {}); s.textContent = t(key, vars); s.className = 'status ' + (ok ? 'ok' : ''); }
+function refreshStatuses() { ['#swStatus', '#zStatus'].forEach(id => { const s = $(id); if (s && s.dataset.k) s.textContent = t(s.dataset.k, JSON.parse(s.dataset.v || '{}')); }); }
 // The moment the owner brings a real file the demo goes away, so made-up numbers never sit beside real ones
 // (before this, a real Swiggy file was compared with the demo's made-up Zomato numbers).
 function leaveDemo() {
@@ -114,17 +110,17 @@ function handleSwiggy(file) {
   const err = $('#err'); err.textContent = '';
   if (!file) return;
   const reader = new FileReader();
-  reader.onerror = () => { err.textContent = 'Couldn\u2019t read the Swiggy file. Try downloading it again.'; };
+  reader.onerror = () => { err.textContent = t('Couldn’t read the Swiggy file. Try downloading it again.'); };
   reader.onload = e => {
     leaveDemo(); currentTab = 'analysis';
     try {
       const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
       D = parseWorkbook(wb); A = analyze(D); isSample = false;
-      setStatus('#swStatus', 'Read ' + plural(A.nDelivered, 'delivered order', 'delivered orders') + ', ' + A.from + ' to ' + A.to, true);
+      setStatus('#swStatus', A.nDelivered === 1 ? 'Read {n} delivered order, {from} to {to}' : 'Read {n} delivered orders, {from} to {to}', true, { n: A.nDelivered, from: A.from, to: A.to });
       render();
     } catch (x) {
       A = null; D = null; setStatus('#swStatus', 'Not read', false);
-      err.textContent = errText(SW_ERR, x, 'Couldn\u2019t read that as a Swiggy payout statement (.xlsx).');
+      err.textContent = errText(SW_ERR, x, t('Couldn’t read that as a Swiggy payout statement (.xlsx).'));
       render();
     }
   };
@@ -134,31 +130,31 @@ function handleZomato(file) {
   const err = $('#err'); err.textContent = '';
   if (!file) return;
   const reader = new FileReader();
-  reader.onerror = () => { err.textContent = 'Couldn\u2019t read the Zomato file. Try downloading it again.'; };
+  reader.onerror = () => { err.textContent = t('Couldn’t read the Zomato file. Try downloading it again.'); };
   reader.onload = e => {
     leaveDemo();
     try {
       const bytes = new Uint8Array(e.target.result);
       const isExcel = (bytes[0] === 0x50 && bytes[1] === 0x4B) || (bytes[0] === 0xD0 && bytes[1] === 0xCF); // .xlsx or old .xls
       Z = isExcel ? parseZomato(XLSX.read(bytes, { type: 'array' })) : parseZomatoCsv(new TextDecoder().decode(bytes)); isSample = false;
-      setStatus('#zStatus', 'Read ' + plural(Z.delivered, 'delivered order', 'delivered orders') + (Z.swapped ? '. Two labels looked swapped, so I read them by checking the maths.' : ''), true);
+      setStatus('#zStatus', Z.swapped ? 'Read {n} delivered orders. Two labels looked swapped, so I read them by checking the maths.' : (Z.delivered === 1 ? 'Read {n} delivered order' : 'Read {n} delivered orders'), true, { n: Z.delivered });
       render();
     } catch (x) {
       Z = null; setStatus('#zStatus', 'Not read', false);
-      err.textContent = errText(Z_ERR, x, 'Couldn\u2019t read that as the Zomato business report (.csv).');
+      err.textContent = errText(Z_ERR, x, t('Couldn’t read that as the Zomato business report (.csv).'));
       render();
     }
   };
   reader.readAsArrayBuffer(file);
 }
 
-// ---------- compact decision UI ----------
-const note = (t, cls='') => el('p', {class:'note '+cls}, t);
-const metric = (label,value,emphasis=false) => el('div',{class:'metric-row'},el('span',{},label),el('strong',{class:emphasis?'em':''},value));
+// ---------- building blocks (every visible word goes through t(), so it follows the chosen language) ----------
+const note = (txt, cls = '') => el('p', { class: 'note ' + cls }, txt);
+const metric = (label, value, emphasis = false) => el('div', { class: 'metric-row' }, el('span', {}, label), el('strong', { class: emphasis ? 'em' : '' }, value));
 const card = (num, kicker, title, sub, body) => {
-  const details=el('details',{class:'info-card'});
-  details.append(el('summary',{},el('div',{class:'card-num'},'0'+num+' · '+kicker),el('h2',{},title),el('p',{},sub),el('span',{class:'open'},'Open →')));
-  details.append(el('div',{class:'card-body'},body));
+  const details = el('details', { class: 'info-card' });
+  details.append(el('summary', {}, el('div', { class: 'card-num' }, '0' + num + ' · ' + t(kicker)), el('h2', {}, title), el('p', {}, t(sub)), el('span', { class: 'open' }, t('Open →'))));
+  details.append(el('div', { class: 'card-body' }, body));
   return details;
 };
 const reduceMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -169,7 +165,8 @@ const addDays = (ymd, n) => new Date(Date.parse(ymd + 'T00:00:00Z') + n * 864000
 function weekLabel(w) {
   const a = w.start < A.from ? A.from : w.start, e0 = addDays(w.start, 6), b = e0 > A.to ? A.to : e0;
   const [, m1, d1] = a.split('-').map(Number), [, m2, d2] = b.split('-').map(Number);
-  return m1 === m2 ? (d1 === d2 ? d1 + ' ' + MONTHS[m1 - 1] : d1 + '–' + d2 + ' ' + MONTHS[m1 - 1]) : d1 + ' ' + MONTHS[m1 - 1] + ' – ' + d2 + ' ' + MONTHS[m2 - 1];
+  const mo1 = t(MONTHS[m1 - 1]), mo2 = t(MONTHS[m2 - 1]);
+  return m1 === m2 ? (d1 === d2 ? d1 + ' ' + mo1 : d1 + '–' + d2 + ' ' + mo1) : d1 + ' ' + mo1 + ' – ' + d2 + ' ' + mo2;
 }
 // A payout that covers a single week has one weekly bar, so show the days instead: delivered orders per day, counted from the order rows.
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -180,15 +177,15 @@ function daysSection() {
   for (let d = A.from; d && d <= A.to && days.length < 14; d = addDays(d, 1)) days.push({ ymd: d, n: counts[d] || 0 });
   if (!days.length) return null;
   const max = Math.max(...days.map(x => x.n)) || 1, best = days.reduce((m, x) => (x.n > m.n ? x : m), days[0]);
-  const label = x => DAY_NAMES[new Date(x.ymd + 'T00:00:00Z').getUTCDay()] + ' ' + Number(x.ymd.slice(8));
+  const label = x => t(DAY_NAMES[new Date(x.ymd + 'T00:00:00Z').getUTCDay()]) + ' ' + Number(x.ymd.slice(8));
   const chart = el('div', { class: 'mini-chart', 'aria-hidden': 'true' }, days.map(x => el('div', { class: 'chart-col' },
     el('strong', {}, String(x.n)), el('i', { style: 'height:' + Math.max(8, Math.round((90 * x.n) / max)) + 'px' }), el('span', {}, label(x)))));
   return el('section', { class: 'weeks-section', id: 'weeks' },
-    el('div', { class: 'eyebrow' }, 'ORDERS · DAY BY DAY'),
-    el('h2', {}, 'How many orders each day?'),
-    el('p', { class: 'weeks-sub' }, 'Delivered orders per day. This payout covers one week (' + weekLabel(A.ins.weeks[0]) + '), so the days are shown instead of weeks.'),
+    el('div', { class: 'eyebrow' }, t('ORDERS · DAY BY DAY')),
+    el('h2', {}, t('How many orders each day?')),
+    el('p', { class: 'weeks-sub' }, t('Delivered orders per day. This payout covers one week ({range}), so the days are shown instead of weeks.', { range: weekLabel(A.ins.weeks[0]) })),
     chart,
-    note('Busiest day: ' + label(best) + ' with ' + plural(best.n, 'order', 'orders') + '. Save more payouts and the Memory page shows week against week.'));
+    note(t('Busiest day: {day} with {n} orders. Save more payouts and the Memory page shows week against week.', { day: label(best), n: best.n })));
 }
 // Demo only: save the four made-up weeks in order, so the Memory page has a history to compare and graph.
 function saveDemoHistory(button, status) {
@@ -196,12 +193,12 @@ function saveDemoHistory(button, status) {
   try {
     SAMPLE_ORDER.forEach(v => {
       D = makeSample(v); A = analyze(D); Z = makeZomatoSample(v); isSample = true;
-      ADV = advise(A, Z, decide(A, Z, inp), inp);
+      ADV = advise(A, Z, decide(A, Z, inp), inp, LANG);
       savePayout({}, true);
     });
   } finally { D = keep.D; A = keep.A; Z = keep.Z; ADV = keep.ADV; isSample = keep.isSample; }
-  button.textContent = 'Saved four demo weeks'; button.disabled = true;
-  if (status) status.textContent = 'Four made-up weeks are saved. Open Payout memory to see them side by side.';
+  button.textContent = t('Saved four demo weeks'); button.disabled = true;
+  if (status) status.textContent = t('Four made-up weeks are saved. Open Payout memory to see them side by side.');
 }
 // Orders per week, partial weeks marked, and the falling-orders line when the latest complete week is half or less of an earlier one.
 function weeksSection(trend) {
@@ -213,16 +210,16 @@ function weeksSection(trend) {
   const chart = el('div', { class: 'mini-chart', 'aria-hidden': 'true' }, W.map(w => el('div', { class: 'chart-col' + (w.partial ? ' part' : '') },
     el('strong', {}, String(w.n)), el('i', { style: 'height:' + Math.max(8, Math.round((90 * w.n) / max)) + 'px' }), el('span', {}, weekLabel(w)))));
   const rows = W.map(w => el('tr', { class: w.partial ? 'part' : '' },
-    el('td', {}, el('span', { class: 'wk' }, weekLabel(w)), w.partial ? el('span', { class: 'wk-note' }, 'partial week · ' + plural(w.days, 'day', 'days')) : null),
+    el('td', {}, el('span', { class: 'wk' }, weekLabel(w)), w.partial ? el('span', { class: 'wk-note' }, tn(w.days, 'partial week · {n} day', 'partial week · {n} days')) : null),
     el('td', {}, el('span', { class: 'wk-cell' }, el('span', { class: 'wk-bar', 'aria-hidden': 'true' }, el('i', { style: 'width:' + Math.max(4, (100 * w.n) / max) + '%' })), el('b', {}, String(w.n)))),
     el('td', {}, inr0(w.sales))));
   return el('section', { class: 'weeks-section', id: 'weeks' },
-    el('div', { class: 'eyebrow' }, 'ORDERS · WEEK BY WEEK'),
-    el('h2', {}, 'How many orders each week?'),
-    el('p', { class: 'weeks-sub' }, 'Delivered orders per week in this statement. A partial week covers fewer days, so do not set it against a complete one.'),
+    el('div', { class: 'eyebrow' }, t('ORDERS · WEEK BY WEEK')),
+    el('h2', {}, t('How many orders each week?')),
+    el('p', { class: 'weeks-sub' }, t('Delivered orders per week in this statement. A partial week covers fewer days, so do not set it against a complete one.')),
     chart,
-    el('div', { class: 'scroll' }, el('table', { class: 'week-table' }, el('thead', {}, el('tr', {}, el('th', {}, 'Week'), el('th', {}, 'Orders'), el('th', {}, 'Sales'))), el('tbody', {}, rows))),
-    W.length === 1 ? note('This file covers one week, so there is nothing to compare yet.') : null,
+    el('div', { class: 'scroll' }, el('table', { class: 'week-table' }, el('thead', {}, el('tr', {}, el('th', {}, t('Week')), el('th', {}, t('Orders')), el('th', {}, t('Sales')))), el('tbody', {}, rows))),
+    W.length === 1 ? note(t('This file covers one week, so there is nothing to compare yet.')) : null,
     trend ? el('p', { class: 'trend-line' }, trend.line) : null,
     trend ? note(trend.basis) : null);
 }
@@ -233,93 +230,87 @@ function meterBlock(sw) {
   const update = () => {
     const v = +input.value, earn = couponEarn(sw, v / 100), amt = Math.round(Math.abs(earn));
     meterGuess = v;
-    out.textContent = amt === 0 ? 'If ' + v + '% were extra, the coupons earn you about the same as no coupons.'
-      : 'If ' + v + '% were extra, the coupons earn you about ' + inr0(amt) + (earn > 0 ? ' more' : ' less') + ' than no coupons.';
+    out.textContent = amt === 0 ? t('If {v}% were extra, the coupons earn you about the same as no coupons.', { v })
+      : t(earn > 0 ? 'If {v}% were extra, the coupons earn you about {amt} more than no coupons.' : 'If {v}% were extra, the coupons earn you about {amt} less than no coupons.', { v, amt: inr0(amt) });
     input.setAttribute('aria-valuetext', out.textContent);
   };
   input.addEventListener('input', update); update();
   return el('div', { class: 'meter', id: 'meter' },
-    el('label', { class: 'meter-label', for: 'meterRange' }, 'How many of my coupon orders were extra?'),
+    el('label', { class: 'meter-label', for: 'meterRange' }, t('How many of my coupon orders were extra?')),
     el('div', { class: 'meter-track' },
-      sw.f != null ? el('div', { class: 'meter-mark', style: '--f:' + sw.f }, el('span', {}, 'Break-even ' + pct0(100 * sw.f) + '%'), el('i')) : null,
+      sw.f != null ? el('div', { class: 'meter-mark', style: '--f:' + sw.f }, el('span', {}, t('Break-even {p}%', { p: pct0(100 * sw.f) })), el('i')) : null,
       input),
     el('div', { class: 'meter-scale' }, el('span', {}, '0%'), el('span', {}, '100%')),
     out,
     el('p', { class: 'meter-sub' }, sw.f != null
-      ? 'Over this statement’s ' + plural(sw.n, 'coupon order', 'coupon orders') + ', after ' + inp.fc + '% food cost. “Extra” means orders that would not have come without the coupon.'
-      : 'At ' + inp.fc + '% food cost these coupon orders do not cover their ingredients, so no share of extra orders makes them pay.'));
+      ? t('Over this statement’s {n} coupon orders, after {fc}% food cost. “Extra” means orders that would not have come without the coupon.', { n: sw.n, fc: inp.fc })
+      : t('At {fc}% food cost these coupon orders do not cover their ingredients, so no share of extra orders makes them pay.', { fc: inp.fc })));
 }
 
-function priceDistanceSection() {
-  const prices = A.ins.prices || [], distance = A.ins.distance;
-  const maxKept = Math.max(...prices.map(p => Math.abs(p.avgKept)), 1);
-  const priceChart = prices.length ? el('div', { class: 'price-chart', 'aria-hidden': 'true' }, prices.map(p => el('div', { class: 'price-chart-row' },
-    el('span', {}, inr0(p.price)), el('i', { style: 'width:' + Math.max(4, Math.round((100 * Math.abs(p.avgKept)) / maxKept)) + '%' }), el('b', {}, inr0(p.avgKept))))) : null;
-  const priceRows = prices.map(p => el('div', { class: 'price-row' },
-    el('div', {}, el('strong', {}, inr0(p.price)), el('span', {}, plural(p.n, 'order', 'orders'))),
-    el('div', { class: 'price-values' }, el('span', {}, 'Avg. kept'), el('strong', {}, inr0(p.avgKept))),
-    el('div', { class: 'price-values' }, el('span', {}, 'Kept / \u20B9100'), el('strong', {}, pct1(p.keptPct) + '%'))));
-  const distanceCard = distance
-    ? el('div', { class: 'distance-card' }, el('div', { class: 'eyebrow' }, 'DELIVERY DISTANCE'), el('strong', { class: 'distance-number' }, distance.avg.toFixed(1) + ' km'), el('p', {}, 'Average across ' + plural(distance.n, 'order', 'orders') + ' with distance data.'), el('div', { class: 'distance-stats' }, metric('Longest', distance.max.toFixed(1) + ' km'), metric('Over 4 km', pct0(distance.over4) + '% of orders')))
-    : el('div', { class: 'distance-card' }, el('div', { class: 'eyebrow' }, 'DELIVERY DISTANCE'), el('p', {}, 'This statement has no usable delivery-distance data.'));
-  return el('section', { class: 'context-section', id: 'order-economics' },
-    el('div', { class: 'section-head' }, el('div', { class: 'eyebrow' }, 'ORDER ECONOMICS'), el('h2', {}, 'Price changes what you keep.'), el('p', {}, 'Higher order value does not automatically mean higher profit. These payout amounts are before food cost.')),
-    el('div', { class: 'context-grid' }, el('div', { class: 'price-card' }, el('div', { class: 'eyebrow' }, 'PRICE POINTS'), priceChart, prices.length ? el('div', { class: 'price-list' }, ...priceRows) : note('No item price points were available in this statement.'), el('p', { class: 'note' }, 'Average kept is the payout per order after statement deductions; it does not subtract ingredients or other operating costs.')), distanceCard));
-}
+// What the "Ask about my numbers" box sends to the AI: only figures computed from the statement, never order rows.
 function questionPayload(question) {
-  const d = decide(A, Z, inp), sw = d.swCoupon;
-  return { question, period: A.from + ' to ' + A.to, metrics: { currencyDenominator:100, distanceThresholdKm:4, percentScale:100,
+  const d = decide(A, Z, inp), sw = d.swCoupon, F = insightFacts(A, Z);
+  return { question, period: A.from + ' to ' + A.to, language: LANG, metrics: { currencyDenominator:100, distanceThresholdKm:4, percentScale:100,
     sales: A.gross, payout: A.kept, keptPer100: A.keptPct, deliveredOrders: A.nDelivered, foodCostPercent: inp.fc, zomatoCommissionPercent: inp.comm,
     couponOrders: sw.n, couponCost: sw.cost, couponBreakEvenExtraPercent: sw.f == null ? null : sw.f * 100,
     deductions: A.buckets.map(b => ({ label: b.label, amount: b.amt, percent: b.pct })),
     prices: (A.ins.prices || []).map(p => ({ itemPrice: p.price, orders: p.n, averagePayout: p.avgKept, keptPercent: p.keptPct })),
+    orderValueBands: A.ins.value.filter(b => b.n).map(b => ({ fromPrice: b.min, belowPrice: b.max, orders: b.n, averagePayout: b.avgKept, keptPercent: b.keptPct })),
+    daysOfWeek: A.ins.dow.filter(x => x.n).map(x => ({ day: DAY_NAMES[x.dow], orders: x.n, averagePayout: x.avgKept })),
     delivery: A.ins.distance ? { averageKm: A.ins.distance.avg, longestKm: A.ins.distance.max, overFourKmPercent: A.ins.distance.over4, ordersWithDistance: A.ins.distance.n } : null,
+    couponVersusNone: F.coupon ? { couponOrders: F.coupon.with.n, couponAveragePayout: F.coupon.with.avgKept, couponKeptPercent: F.coupon.with.keptPct, otherOrders: F.coupon.without ? F.coupon.without.n : 0, otherAveragePayout: F.coupon.without ? F.coupon.without.avgKept : null, otherKeptPercent: F.coupon.without ? F.coupon.without.keptPct : null } : null,
+    cancelledOrders: F.ops.cancelled.n,
+    zomatoFunnel: F.zomato ? F.zomato.funnel.map(s => ({ step: s.key, count: s.v })) : null,
     weeks: (A.ins.weeks || []).map(w => ({ weekStarting: w.start, deliveredOrders: w.n, partialWeek: w.partial })),
     orderPeriods: A.ins.parts.map(p => ({ period: p.label, orders: p.n, sharePercent: p.share })),
     decisions: { coupon: ADV.d1.head, platform: ADV.d2.head, timing: ADV.d3.head }
   }};
 }
 function askNumbersSection() {
-  const question = el('textarea', { id: 'numbersQuestion', rows: '2', maxlength: '500', placeholder: 'e.g. Which price point leaves me with more after delivery deductions?', 'aria-label': 'Ask a question about this payout' });
-  const answer = el('div', { class: 'answer-box', id: 'numbersAnswer', role: 'status', 'aria-live': 'polite' }, 'The answer will use the calculated figures above.');
-  const button = el('button', { class: 'button', type: 'button', onclick: () => askAboutNumbers(button, question, answer) }, 'Ask about my numbers');
+  const question = el('textarea', { id: 'numbersQuestion', rows: '2', maxlength: '500', placeholder: t('e.g. Which price point leaves me with more after delivery deductions?'), 'aria-label': t('Ask a question about this payout') });
+  const answer = el('div', { class: 'answer-box', id: 'numbersAnswer', role: 'status', 'aria-live': 'polite' }, t('The answer will use the calculated figures above.'));
+  const button = el('button', { class: 'button', type: 'button', onclick: () => askAboutNumbers(button, question, answer) }, t('Ask about my numbers'));
   return el('section', { class: 'ask-section', id: 'ask-numbers' },
-    el('div', { class: 'ask-copy' }, el('div', { class: 'eyebrow' }, 'ASK ABOUT THIS PAYOUT'), el('h2', {}, 'One number unclear? Ask.'), el('p', {}, 'Answers use the figures above. Any unsupported number is rejected and the verified summary is shown instead.'),
-      el('label', { class: 'sr-only', for: 'numbersQuestion' }, 'Your question'), question, button), answer,
-    el('div', { class: 'ask-meta' }, 'AI answers are optional. Without a configured key, AFTER. shows a verified summary.'));
+    el('div', { class: 'ask-copy' }, el('div', { class: 'eyebrow' }, t('ASK ABOUT THIS PAYOUT')), el('h2', {}, t('One number unclear? Ask.')), el('p', {}, t('Answers use the figures above. Any unsupported number is rejected and the verified summary is shown instead.')),
+      el('label', { class: 'sr-only', for: 'numbersQuestion' }, t('Your question')), question, button), answer,
+    el('div', { class: 'ask-meta' }, t('AI answers are optional. Without a configured key, AFTER. shows a verified summary.')));
 }
 
 function verifiedAnswer(payload) {
   const m = payload.metrics;
-  return 'AI is not connected here yet. For ' + payload.period + ', you kept ' + inr(m.payout) + ' from ' + inr(m.sales) + ' in sales (' + pct1(m.keptPer100) + ' per \u20B9100) across ' + m.deliveredOrders + ' delivered orders. The detailed figures and estimates are shown above.';
+  return t('AI is not connected here yet. For {period}, you kept {payout} from {sales} in sales ({kept} per ₹100) across {n} delivered orders. The detailed figures and estimates are shown above.', { period: payload.period, payout: inr(m.payout), sales: inr(m.sales), kept: pct1(m.keptPer100), n: m.deliveredOrders });
 }
 async function askAboutNumbers(button, question, answer) {
   const q = question.value.trim();
-  if (!q) { answer.textContent = 'Type a question first.'; question.focus(); return; }
-  button.disabled = true; answer.textContent = 'Checking the payout figures...';
+  if (!q) { answer.textContent = t('Type a question first.'); question.focus(); return; }
+  button.disabled = true; answer.textContent = t('Checking the payout figures...');
   const payload = questionPayload(q), text = await askClaude('ask', payload);
-  if (text) { const checked = checkText(text, { period: payload.period, metrics: payload.metrics }); answer.textContent = checked.ok ? text : verifiedAnswer(payload) + ' An unsupported number was detected, so the verified summary is shown.'; }
+  if (text) { const checked = checkText(text, { period: payload.period, metrics: payload.metrics }); answer.textContent = checked.ok ? text : verifiedAnswer(payload) + ' ' + t('An unsupported number was detected, so the verified summary is shown.'); }
   else answer.textContent = verifiedAnswer(payload);
   button.disabled = false;
 }
 async function copySummary(status) {
-  const d = decide(A, Z, inp), trend = ordersTrend(A);
-  const top = A.buckets.filter(b => b.key !== 'kept' && b.amt > 0).slice().sort((a, b) => b.amt - a.amt).slice(0, 3).map(b => b.label + ': ' + inr(b.amt)).join('; ');
-  const txt = ['AFTER. payout summary | ' + A.from + ' to ' + A.to,
-    'Sales: ' + inr(A.gross) + ' | payout: ' + inr(A.kept) + ' | kept: ' + pct1(A.keptPct) + ' per \u20B9100',
-    'Delivered orders: ' + A.nDelivered, top ? 'Largest deductions: ' + top : '',
-    d.swCoupon.f != null ? 'Coupon break-even: about ' + pct0(100 * d.swCoupon.f) + '% of coupon orders would need to be genuinely extra.' : '',
-    Z && d.z ? 'Zomato comparison: about ' + inr0(d.z.per) + ' per order (estimate using ' + inp.comm + '% commission).' : '',
-    trend ? trend.line + ' This is a signal to investigate, not a proven cause.' : '',
-    'Calculated from the payout statement. Zomato figures, if shown, are estimates.'].filter(Boolean).join('\n');
+  const d = decide(A, Z, inp), trend = ordersTrend(A, LANG);
+  const top = A.buckets.filter(b => b.key !== 'kept' && b.amt > 0).slice().sort((a, b) => b.amt - a.amt).slice(0, 3).map(b => t(b.label) + ': ' + inr(b.amt)).join('; ');
+  const txt = [t('AFTER. payout summary | {from} to {to}', { from: A.from, to: A.to }),
+    t('Sales: {sales} | payout: {payout} | kept: {kept} per ₹100', { sales: inr(A.gross), payout: inr(A.kept), kept: pct1(A.keptPct) }),
+    t('Delivered orders: {n}', { n: A.nDelivered }), top ? t('Largest deductions: {list}', { list: top }) : '',
+    d.swCoupon.f != null ? t('Coupon break-even: about {p}% of coupon orders would need to be genuinely extra.', { p: pct0(100 * d.swCoupon.f) }) : '',
+    Z && d.z ? t('Zomato comparison: about {x} per order (estimate using {comm}% commission).', { x: inr0(d.z.per), comm: inp.comm }) : '',
+    trend ? trend.line + ' ' + t('This is a signal to investigate, not a proven cause.') : '',
+    t('Calculated from the payout statement. Zomato figures, if shown, are estimates.')].filter(Boolean).join('\n');
   try {
     if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(txt);
-    else { const t = el('textarea', { class: 'copy-buffer' }); t.value = txt; document.body.append(t); t.select(); if (!document.execCommand('copy')) throw new Error('copy failed'); t.remove(); }
-    status.textContent = 'Summary copied. Paste it into WhatsApp or a message to your accountant.';
-  } catch (e) { status.textContent = 'Could not copy automatically. Select and copy this summary:'; let fallback=status.parentElement.querySelector('.copy-manual'); if(!fallback){fallback=el('textarea',{class:'copy-manual',rows:'7','aria-label':'Summary to copy'});status.after(fallback);} fallback.value=txt; fallback.hidden=false; fallback.focus(); fallback.select(); }
+    else { const ta = el('textarea', { class: 'copy-buffer' }); ta.value = txt; document.body.append(ta); ta.select(); if (!document.execCommand('copy')) throw new Error('copy failed'); ta.remove(); }
+    status.textContent = t('Summary copied. Paste it into WhatsApp or a message to your accountant.');
+  } catch (e) { status.textContent = t('Could not copy automatically. Select and copy this summary:'); let fallback = status.parentElement.querySelector('.copy-manual'); if (!fallback) { fallback = el('textarea', { class: 'copy-manual', rows: '7', 'aria-label': t('Summary to copy') }); status.after(fallback); } fallback.value = txt; fallback.hidden = false; fallback.focus(); fallback.select(); }
 }
 
-const adviceBlock = a => el('div',{class:'advice'},el('div',{class:'advice-item'},el('span',{},LABELS[lang].do),el('strong',{},a.do||'No change needed.')),el('div',{class:'advice-item'},el('span',{},LABELS[lang].measure),el('strong',{},a.measure||'Track the result.')),el('div',{class:'advice-item'},el('span',{},LABELS[lang].stop),el('strong',{},a.stop||'The test fails.')),a.basis?el('p',{class:'basis'},a.basis):null);
+const adviceBlock = a => el('div', { class: 'advice' },
+  el('div', { class: 'advice-item' }, el('span', {}, t('DO')), el('strong', {}, a.do || t('No change needed.'))),
+  el('div', { class: 'advice-item' }, el('span', {}, t('MEASURE')), el('strong', {}, a.measure || t('Track the result.'))),
+  el('div', { class: 'advice-item' }, el('span', {}, t('STOP IF')), el('strong', {}, a.stop || t('The test fails.'))),
+  a.basis ? el('p', { class: 'basis' }, a.basis) : null);
 
 function metricSnapshot(source, decisions) {
   const weeks=(Date.parse(source.to+'T00:00:00Z')-Date.parse(source.from+'T00:00:00Z')+86400000)/604800000;
@@ -352,16 +343,17 @@ function outcomeFor(test, record) {
     outcome=test.target.direction==='atMost'?(after<=target?'worked':'did-not-work'):(after>=target?'worked':'did-not-work');
   const show=v=>v==null?'no data':Number(v).toFixed(1);
   test.outcome=outcome;test.completedAt=new Date().toISOString();test.nextPayout={from:record.from,to:record.to,period:record.period,observed:after==null?null:after};
+  test.evidenceData={baseline:test.baselinePeriod,next:record.period,label:test.watchLabel,before:before==null?null:before,after:after==null?null:after,target:test.target&&Number.isFinite(Number(test.target.value))?Number(test.target.value):null,direction:test.target?test.target.direction:null};
   test.evidence=test.baselineIsDemo?'The starting payout was made-up demo data, so AFTER. did not score the result.':
     'Baseline '+test.baselinePeriod+': '+test.watchLabel+' '+show(before)+'. Next payout '+record.period+': '+test.watchLabel+' '+show(after)+'. '+(test.target?'Target: '+(test.target.direction==='atMost'?'at most ':'at least ')+show(target)+'.':'No target was set, so the result is inconclusive.');
   localStorage.setItem('after_test',JSON.stringify(test));
   return true;
 }
 function savePayout(button, skipTest) {
-  const d=decide(A,Z,inp),test=skipTest?null:JSON.parse(localStorage.getItem('after_test')||'null'),period=A.from+' to '+A.to;
+  const d=decide(A,Z,inp),test=skipTest?null:JSON.parse(localStorage.getItem('after_test')||'null'),period=A.from+' to '+A.to,all=adviceAll(d),en=advise(A,Z,d,inp,'English');
   const record={id:Date.now(),saved:new Date().toISOString(),from:A.from,to:A.to,period,sourcePlatform:'Swiggy',comparisonPlatform:Z?'Zomato estimate':null,
     profile:savedProfile(),isSample,metrics:metricSnapshot(A,d),inputAssumptions:{foodCostPercent:inp.fc,zomatoCommissionPercent:inp.comm},
-    decision:test&&!test.outcome?test.action:(ADV.d1.do||ADV.d1.head),decisionDetails:{coupon:ADV.d1.do,platform:ADV.d2.do,timing:ADV.d3.do},
+    decision:test&&!test.outcome?test.action:all.English.decision,decisionL10n:{Hindi:all.Hindi.decision,Kannada:all.Kannada.decision},decisionDetails:{coupon:en.d1.do,platform:en.d2.do,timing:en.d3.do},
     testId:test&&!test.outcome?test.id:null,evidence:{deductions:A.buckets.map(b=>({label:b.label,amount:b.amt,percent:b.pct})),arithmeticChecks:A.checks.map(c=>({label:c.label,ok:c.ok===c.tot}))}};
   const scored=outcomeFor(test,record),history=JSON.parse(localStorage.getItem('after_payouts')||'[]');
   const next=[record,...history.filter(x=>x.from!==record.from||x.to!==record.to)].slice(0,50);
@@ -369,70 +361,73 @@ function savePayout(button, skipTest) {
   button.textContent=scored?'Saved - test outcome recorded':'Saved';button.disabled=true;
 }
 
-function render(){
-  const root=$('#board'); const openCard=$('#card-coupons'); if(openCard)couponOpen=openCard.open; root.replaceChildren();
-  if(!A){root.hidden=!Z;if(Z)root.append(note('Add the Swiggy payout too — the comparison needs both.'));return;}
-  root.hidden=false;
-  const d=decide(A,Z,inp); const adv=ADV=advise(A,Z,d,inp); const trend=ordersTrend(A);
-  const segs=A.buckets.filter(b=>b.amt>.005&&b.pct>0);
-  const stack=el('div',{class:'money-bar'},...segs.map(b=>el('i',{class:'k-'+b.key,style:'flex-grow:'+b.pct,title:b.label})));
-  // Keep the current result available to the separate actions page without storing order rows.
-  const currentMetrics=metricSnapshot(A,d);
+// The advice in every language, so pages that do not load core.js (What to do, Memory) can still show it in the language the owner chose.
+function adviceAll(d) {
+  const out = {};
+  Object.keys(I18N_LANGS).forEach(l => { const a = advise(A, Z, d, inp, l), tr = ordersTrend(A, l); out[l] = { couponHead: a.d1.head, platformHead: a.d2.head, timingHead: a.d3.head, decision: a.d1.do || a.d1.head, trendLine: tr ? tr.line : null }; });
+  return out;
+}
+
+function render() {
+  const root = $('#board'); const openCard = $('#card-coupons'); if (openCard) couponOpen = openCard.open; root.replaceChildren();
+  if (!A) { root.hidden = !Z; if (Z) root.append(note(t('Add the Swiggy payout too — the comparison needs both.'))); return; }
+  root.hidden = false;
+  const d = decide(A, Z, inp), adv = ADV = advise(A, Z, d, inp, LANG), trend = ordersTrend(A, LANG);
+  const segs = A.buckets.filter(b => b.amt > .005 && b.pct > 0);
+  const stack = el('div', { class: 'money-bar' }, ...segs.map(b => el('i', { class: 'k-' + b.key, style: 'flex-grow:' + b.pct, title: t(b.label) })));
+  // Keep the current result available to the What to do page without storing order rows. The headings are kept in all three languages.
+  const currentMetrics = metricSnapshot(A, d), all = adviceAll(d), en = all.English;
   localStorage.setItem('after_current', JSON.stringify({
-    from:A.from,to:A.to,isSample,keptPct:A.keptPct,gross:A.gross,kept:A.kept,orders:A.nDelivered,
-    couponShare:A.ins.coupon.share, parts:A.ins.parts.slice(0,6).map(x=>({label:x.label,n:x.n,share:x.share})),
-    swiggyPer:d.swPer, zomatoPer:Z&&d.z?d.z.per:null, commission:inp.comm, decision:adv.d1.do||adv.d1.head,
-    couponHead:adv.d1.head, platformHead:adv.d2.head, timingHead:adv.d3.head,
-    metrics:currentMetrics,
-    trendLine:trend?trend.line:null
+    from: A.from, to: A.to, isSample, keptPct: A.keptPct, gross: A.gross, kept: A.kept, orders: A.nDelivered,
+    couponShare: A.ins.coupon.share, parts: A.ins.parts.slice(0, 6).map(x => ({ label: x.label, n: x.n, share: x.share })),
+    swiggyPer: d.swPer, zomatoPer: Z && d.z ? d.z.per : null, commission: inp.comm, decision: en.decision,
+    couponHead: en.couponHead, platformHead: en.platformHead, timingHead: en.timingHead, heads: all,
+    metrics: currentMetrics, trendLine: en.trendLine
   }));
-  root.append(el('section',{class:'result-hero'},
-    el('div',{class:'eyebrow'},'YOUR PAYOUT · '+A.from+' → '+A.to),
-    el('h1',{},adv.lead.head),
-    el('p',{class:'result-sub'},plural(A.nDelivered,'delivered order','delivered orders')+' · sales '+inr0(A.gross)+' · payout '+inr(A.kept)),
-    el('div',{class:'breakup-head'},el('div',{class:'eyebrow'},'BREAKUP · WHERE THE MONEY WENT'),el('p',{},'This is the payout in one line: what you kept, and everything deducted before it reached you.')),
+  root.append(el('section', { class: 'result-hero' },
+    el('div', { class: 'eyebrow' }, t('YOUR PAYOUT') + ' · ' + A.from + ' → ' + A.to),
+    el('h1', {}, adv.lead.head),
+    el('p', { class: 'result-sub' }, tn(A.nDelivered, '{n} delivered order', '{n} delivered orders') + ' · ' + t('sales {x}', { x: inr0(A.gross) }) + ' · ' + t('payout {x}', { x: inr(A.kept) })),
+    el('div', { class: 'breakup-head' }, el('div', { class: 'eyebrow' }, t('BREAKUP · WHERE THE MONEY WENT')), el('p', {}, t('This is the payout in one line: what you kept, and everything deducted before it reached you.'))),
     stack,
-    el('div',{class:'bar-legend'},...segs.map(b=>el('div',{class:'legend-item'},el('i',{class:'legend-swatch k-'+b.key}),el('span',{},b.label+' · '+pct1(b.pct)+'%')))),
-    isSample?el('div',{class:'demo-pill'},'DEMO MODE · made-up numbers'):null,
-    el('div',{class:'ai-status',id:'aiStatus'},'Verified from the numbers in your payout.')
+    el('div', { class: 'bar-legend' }, ...segs.map(b => el('div', { class: 'legend-item' }, el('i', { class: 'legend-swatch k-' + b.key }), el('span', {}, t(b.label) + ' · ' + pct1(b.pct) + '%')))),
+    isSample ? el('div', { class: 'demo-pill' }, t('DEMO MODE · made-up numbers')) : null,
+    el('div', { class: 'ai-status', id: 'aiStatus' }, t('Verified from the numbers in your payout.'))
   ));
-  const weeksEl=weeksSection(trend); if(weeksEl)root.append(weeksEl);
-  root.append(priceDistanceSection());
-  const sw=d.swCoupon;
-  const d1body=el('div',{},metric('Coupon orders',sw.n+' of '+A.nDelivered+' ('+pct0(A.ins.coupon.share)+'%)'),metric('Coupon cost',inr(sw.cost)+' · '+pct1((100*sw.cost)/A.gross)+'% of sales'),metric('Keep per coupon order',sw.perCoupon!=null?inr(sw.perCoupon):'—'),sw.f!=null?metric('Break-even threshold',pct0(100*sw.f)+'% genuinely extra',true):null,el('p',{class:'explain-note'},'The statement cannot tell us which coupon orders were truly incremental. The threshold tells you what must be true for the discount to pay for itself.'),sw.n?meterBlock(sw):null);
-  const d2body=el('div',{},Z?metric('Swiggy / order',inr0(d.swPer),true):metric('Zomato report','Not added'),Z?metric('Zomato / order','~'+inr0(d.z.per)+' estimate',true):null,Z?metric('Commission used',inp.comm+'% · your input'):null,Z&&d.z.cStar!=null?metric('Break-even commission',pct0(d.z.cStar)+'%'):null);
-  const d3body=el('div',{},...A.ins.parts.slice(0,5).map(p=>metric(p.label,p.n+' orders · '+pct0(p.share)+'%')));
-  const c1=card(1,'COUPONS',adv.d1.head,'Is the discount actually earning its keep?',d1body); c1.id='card-coupons'; c1.open=couponOpen;
-  root.append(el('section',{class:'cards-section'},el('div',{class:'section-head'},el('div',{class:'eyebrow'},'READ THE PAYOUT'),el('h2',{},'Three things worth knowing.')),el('div',{class:'card-grid'},c1,card(2,'PLATFORMS',Z?adv.d2.head:'Compare the two apps','Which platform leaves more after the costs?',d2body),card(3,'TIMING',adv.d3.head,'When is demand strongest?',d3body))));
-  root.append(el('section',{class:'action-section'},el('div',{class:'section-head'},el('div',{class:'eyebrow'},'NEXT · ACTIONS'),el('h2',{},'Now decide what to test.'),el('p',{},'The breakdown stays here. The deeper recommendations live on their own page so this screen stays easy to scan.')),el('a',{class:'button',href:'/actions.html'},'See what to do →')));
+  const weeksEl = weeksSection(trend); if (weeksEl) root.append(weeksEl);
+  root.append(insightsSection());
+  const sw = d.swCoupon;
+  const d1body = el('div', {}, metric(t('Coupon orders'), t('{n} of {of} ({p}%)', { n: sw.n, of: A.nDelivered, p: pct0(A.ins.coupon.share) })), metric(t('Coupon cost'), inr(sw.cost) + ' · ' + t('{p}% of sales', { p: pct1((100 * sw.cost) / A.gross) })), metric(t('Keep per coupon order'), sw.perCoupon != null ? inr(sw.perCoupon) : '—'), sw.f != null ? metric(t('Break-even threshold'), t('{p}% genuinely extra', { p: pct0(100 * sw.f) }), true) : null, el('p', { class: 'explain-note' }, t('The statement cannot tell us which coupon orders were truly incremental. The threshold tells you what must be true for the discount to pay for itself.')), sw.n ? meterBlock(sw) : null);
+  const d2body = el('div', {}, Z ? metric(t('Swiggy / order'), inr0(d.swPer), true) : metric(t('Zomato report'), t('Not added')), Z ? metric(t('Zomato / order'), '~' + inr0(d.z.per) + ' ' + t('estimate'), true) : null, Z ? metric(t('Commission used'), inp.comm + '% · ' + t('your input')) : null, Z && d.z.cStar != null ? metric(t('Break-even commission'), pct0(d.z.cStar) + '%') : null);
+  const d3body = el('div', {}, ...A.ins.parts.slice(0, 5).map(p => metric(t(p.label), tn(p.n, '{n} order', '{n} orders') + ' · ' + pct0(p.share) + '%')));
+  const c1 = card(1, 'COUPONS', adv.d1.head, 'Is the discount actually earning its keep?', d1body); c1.id = 'card-coupons'; c1.open = couponOpen;
+  root.append(el('section', { class: 'cards-section' }, el('div', { class: 'section-head' }, el('div', { class: 'eyebrow' }, t('READ THE PAYOUT')), el('h2', {}, t('Three things worth knowing.'))),
+    el('div', { class: 'card-grid' }, c1, card(2, 'PLATFORMS', Z ? adv.d2.head : t('Compare the two apps'), 'Which platform leaves more after the costs?', d2body), card(3, 'TIMING', adv.d3.head, 'When is demand strongest?', d3body))));
+  root.append(el('section', { class: 'action-section' }, el('div', { class: 'section-head' }, el('div', { class: 'eyebrow' }, t('NEXT · ACTIONS')), el('h2', {}, t('Now decide what to test.')), el('p', {}, t('The breakdown stays here. The deeper recommendations live on their own page so this screen stays easy to scan.'))), el('a', { class: 'button', href: '/actions.html' }, t('See what to do →'))));
+  root.append(flagsSection());
   root.append(askNumbersSection());
-  const copyStatus=el('p',{class:'copy-status',role:'status'});
-  const copyBtn=el('button',{class:'button ghost',type:'button',onclick:()=>copySummary(copyStatus)},'Copy a summary');
-  const saveBtn=el('button',{class:'button',type:'button',onclick:e=>savePayout(e.currentTarget)},'Save this payout');
-  const demoHistoryBtn=isSample?el('button',{class:'button ghost',type:'button',onclick:e=>saveDemoHistory(e.currentTarget,copyStatus)},'Save all four demo weeks'):null;
-  root.append(el('section',{class:'memory-section'},el('div',{class:'memory-copy'},el('div',{class:'eyebrow'},'THE MEMORY LOOP'),el('h2',{},'The next payout should answer what happened last time.'),el('p',{},'Save this result. On the next run, the prototype can compare the period and decision in this browser. No order rows are stored.')),el('div',{class:'memory-actions'},copyBtn,saveBtn,demoHistoryBtn,copyStatus,el('a',{class:'button ghost',href:'/insights.html'},'Open payout memory →'))));
-  const flagList=A.flags.map((f,i)=>el('article',{class:'flag'},el('h4',{},f.title),f.amount>0?el('strong',{},inr(f.amount)):null,el('p',{},f.why),f.lines.length?el('ul',{},f.lines.map(l=>el('li',{},l))):null,el('p',{},el('b',{},'Ask: '),f.ask),el('button',{class:'button ghost',type:'button',onclick:()=>{$('#flagSel').value=String(i);$('#draftBox').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'center'})}},'Draft message')));
-  const ck=el('ul',{class:'checks'});A.checks.forEach(c=>ck.append(el('li',{},el('span',{class:'tick '+(c.ok===c.tot?'ok':'no')},c.ok===c.tot?'Matches':'Differs'),el('span',{},(c.tot>1?c.ok+' of '+c.tot+' orders: ':'')+c.label))));
-  const flagOpts=A.flags.length?A.flags.map((f,i)=>el('option',{value:String(i)},f.title)):[el('option',{value:'-1'},'General question about this payout')];
-  const draftOut=el('textarea',{id:'draftOut',rows:'8','aria-label':'Drafted message'});
-  root.append(el('details',{class:'audit'},el('summary',{},'Need the audit trail? Open it.'),A.flags.length?flagList:note('Nothing unusual was detected.'),el('h4',{},'What I checked'),ck,el('div',{id:'draftBox',class:'draft'},el('h4',{},'Message to Swiggy support'),el('label',{for:'flagSel'},'About'),el('select',{id:'flagSel'},flagOpts),el('div',{class:'row'},el('button',{class:'button',id:'draftBtn',type:'button',onclick:doDraft},'Draft the message'),el('button',{class:'button ghost',type:'button',onclick:copyDraft},'Copy')),draftOut,el('p',{id:'draftNote',class:'ai-status'}))));
-  root.append(note('Files are read in your browser. Calculations are deterministic; AI is only used to reword advice when available.','fine'));
-  if(isSample){
-    const steps=[
-      ['See the payout',()=>{showTab('analysis');goTo($('.result-hero'))}],
-      ['Read the decisions',()=>{showTab('analysis');goTo($('.cards-section'))}],
-      ['Keep the memory',()=>{showTab('insights');goTo($('.memory-section'))}],
-      ['Test your own guess',()=>{showTab('analysis');c1.open=true;couponOpen=true;goTo($('#meter'));const m=$('#meterRange');if(m)m.focus({preventScroll:true})}]
+  const copyStatus = el('p', { class: 'copy-status', role: 'status' });
+  const copyBtn = el('button', { class: 'button ghost', type: 'button', onclick: () => copySummary(copyStatus) }, t('Copy a summary'));
+  const saveBtn = el('button', { class: 'button', type: 'button', onclick: e => savePayout(e.currentTarget) }, t('Save this payout'));
+  const demoHistoryBtn = isSample ? el('button', { class: 'button ghost', type: 'button', onclick: e => saveDemoHistory(e.currentTarget, copyStatus) }, t('Save all four demo weeks')) : null;
+  root.append(el('section', { class: 'memory-section' }, el('div', { class: 'memory-copy' }, el('div', { class: 'eyebrow' }, t('THE MEMORY LOOP')), el('h2', {}, t('The next payout should answer what happened last time.')), el('p', {}, t('Save this result. On the next run, the prototype can compare the period and decision in this browser. No order rows are stored.'))), el('div', { class: 'memory-actions' }, copyBtn, saveBtn, demoHistoryBtn, copyStatus, el('a', { class: 'button ghost', href: '/insights.html' }, t('Open payout memory →')))));
+  root.append(note(t('Files are read in your browser. Every figure is calculated by code. AI, when switched on, only answers questions and drafts the message to Swiggy.'), 'fine'));
+  if (isSample) {
+    const steps = [
+      ['See the payout', () => { showTab('analysis'); goTo($('.result-hero')); }],
+      ['Read the decisions', () => { showTab('analysis'); goTo($('.cards-section')); }],
+      ['Keep the memory', () => { showTab('insights'); goTo($('.memory-section')); }],
+      ['Test your own guess', () => { showTab('analysis'); c1.open = true; couponOpen = true; goTo($('#meter')); const m = $('#meterRange'); if (m) m.focus({ preventScroll: true }); }]
     ];
-    const btns=steps.map(([label,fn],i)=>el('button',{type:'button',onclick:e=>{btns.forEach(b=>b.removeAttribute('aria-current'));e.currentTarget.setAttribute('aria-current','step');fn()}},el('b',{},String(i+1)),label));
-    root.prepend(el('nav',{class:'demo-guide','aria-label':'Demo steps'},el('span',{class:'dg-label'},'Demo guide'),...btns));
+    const btns = steps.map(([label, fn], i) => el('button', { type: 'button', onclick: e => { btns.forEach(b => b.removeAttribute('aria-current')); e.currentTarget.setAttribute('aria-current', 'step'); fn(); } }, el('b', {}, String(i + 1)), t(label)));
+    root.prepend(el('nav', { class: 'demo-guide', 'aria-label': t('Demo steps') }, el('span', { class: 'dg-label' }, t('Demo guide')), ...btns));
   }
   setupProductTabs();
-  schedulePhrase();
 }
+
 // The three views of a payout: Analysis, Flags, Insights. One switcher for the sidebar, the tab bar and the demo guide.
 let currentTab = 'analysis';
-const TAB_GROUPS = { analysis: ['result-hero', 'cards-section', 'action-section'], flags: ['ask-section', 'audit'], insights: ['weeks-section', 'context-section', 'memory-section'] };
+const TAB_GROUPS = { analysis: ['result-hero', 'cards-section', 'action-section'], flags: ['flags-section', 'ask-section'], insights: ['weeks-section', 'insights-section', 'memory-section'] };
 function showTab(tab) {
   if (!TAB_GROUPS[tab]) tab = 'analysis';
   currentTab = tab;
@@ -445,54 +440,59 @@ function showTab(tab) {
 function setupProductTabs() {
   const root = $('#board'); if (!root) return;
   Object.entries(TAB_GROUPS).forEach(([tab, classes]) => classes.forEach(cls => root.querySelectorAll('.' + cls).forEach(node => { node.dataset.tabPanel = tab; })));
-  const tabs = el('nav', { class: 'product-tabs', 'aria-label': 'Payout workspace' }, ...Object.keys(TAB_GROUPS).map(tab => {
-    const b = el('button', { type: 'button', class: 'product-tab', 'data-tab': tab, 'aria-selected': 'false' }, tab[0].toUpperCase() + tab.slice(1));
+  const tabs = el('nav', { class: 'product-tabs', 'aria-label': t('Payout workspace') }, ...Object.keys(TAB_GROUPS).map(tab => {
+    const b = el('button', { type: 'button', class: 'product-tab', 'data-tab': tab, 'aria-selected': 'false' }, t(tab[0].toUpperCase() + tab.slice(1)));
     b.addEventListener('click', () => showTab(tab));
     return b;
   }));
   root.prepend(tabs);
   showTab(currentTab); // a redraw (food cost, language) keeps the view the owner was on
 }
-async function askClaude(task,payload){try{const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task,lang,payload}),signal:AbortSignal.timeout(task==='ask'?23000:12000)});if(!r.ok)return null;const j=await r.json();return j&&typeof j.text==='string'&&j.text?j.text:null}catch(e){return null}}
-const whyPlain=c=>c.bad.length?'AI wording had an unsupported number ('+c.bad[0]+'), so the verified plain version is shown.':c.banned?'AI wording used a banned term (“'+c.banned+'”), so the verified plain version is shown.':'AI wording left something out, so the verified plain version is shown.';
-let phraseTimer=null;function schedulePhrase(){clearTimeout(phraseTimer);phraseTimer=setTimeout(phraseBoard,300)}async function phraseBoard(){if(!ADV||!$('#aiStatus'))return;if(lang==='English'){$('#aiStatus').textContent='Verified from the numbers in your payout.';return}$('#aiStatus').textContent='Translating the verified wording…';const payload=phrasePayload(ADV),raw=await askClaude('phrase',payload);if(!raw){$('#aiStatus').textContent='Translation unavailable; verified English wording is shown.';return}try{const clean=raw.replace(/^```json\s*|^```|```$/g,'').trim(),translated=JSON.parse(clean),check=checkText(clean,payload);if(!check.ok)throw new Error('translation check failed');const lead=document.querySelector('.result-hero h1');if(lead&&translated.lead&&translated.lead.head)lead.textContent=translated.lead.head;const cards=[...document.querySelectorAll('.info-card h2')];['d1','d2','d3'].forEach((k,i)=>{const a=translated[k]||{};if(cards[i]&&a.head)cards[i].textContent=a.head;const strong=[...document.querySelectorAll('.advice-item strong')];if(strong[i*3]&&a.do)strong[i*3].textContent=a.do;if(strong[i*3+1]&&a.measure)strong[i*3+1].textContent=a.measure;if(strong[i*3+2]&&a.stop)strong[i*3+2].textContent=a.stop});$('#aiStatus').textContent='Verified wording translated to '+LANG_NAMES[lang]+'.'}catch(e){$('#aiStatus').textContent='Translation failed its number check; verified English wording is shown.'}}function draftContext(i){if(i<0||!A.flags[i])return{title:'General question about this payout statement',why:'',ask:'',orders:[],lines:[]};return A.flags[i]}
-function fallbackDraft(f){return `Subject: Request for explanation, payout ${A.from} to ${A.to}
+// The optional AI helper. The prompt is built on the server; only computed figures are sent. `toLang` is the language of the answer.
+async function askClaude(task, payload, toLang) {
+  try {
+    const r = await fetch('/api/claude', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task, lang: toLang || LANG, payload }), signal: AbortSignal.timeout(task === 'ask' ? 23000 : 12000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j && typeof j.text === 'string' && j.text ? j.text : null;
+  } catch (e) { return null; }
+}
+const whyPlain = c => c.bad.length ? t('AI wording had an unsupported number ({n}), so the verified plain version is shown.', { n: c.bad[0] })
+  : c.banned ? t('AI wording used a banned term (“{w}”), so the verified plain version is shown.', { w: c.banned })
+  : t('AI wording left something out, so the verified plain version is shown.');
+function draftContext(i) { if (i < 0 || !A.flags[i]) return { title: 'General question about this payout statement', why: '', ask: '', orders: [], lines: [] }; return A.flags[i]; }
+function fallbackDraft(f) { return `Subject: Request for explanation, payout ${A.from} to ${A.to}
 
 Hello,
 
 I run [Restaurant name] (Restaurant ID: [Restaurant ID]). While reviewing our payout statement for ${A.from} to ${A.to}, I’d like to understand the following:
 
-• ${f.neutral||f.title}
-${f.orders.length?'  Order IDs: '+f.orders.slice(0,12).join(', ')+(f.orders.length>12?' and '+(f.orders.length-12)+' more':'')+'\n':''}
+• ${f.neutral || f.title}
+${f.orders.length ? '  Order IDs: ' + f.orders.slice(0, 12).join(', ') + (f.orders.length > 12 ? ' and ' + (f.orders.length - 12) + ' more' : '') + '\n' : ''}
 Could you please confirm the basis for these amounts and let me know in writing whether they are correct?
 
 Thank you,
 [Your name]
-[Phone]`}
-async function doDraft(){const out=$('#draftOut'),btn=$('#draftBtn'),why=$('#draftNote');btn.disabled=true;out.value='Drafting…';why.textContent='';const f=draftContext(parseInt($('#flagSel').value,10));const payload={period:A.from+' to '+A.to,item:f.neutral||f.title,detail:f.why,notes:f.lines||[],orders:f.orders.slice(0,15),more_orders:Math.max(0,f.orders.length-15)};const t=await askClaude('draft',payload);const c=t?checkText(t,payload):null;if(c&&c.ok)out.value=t;else{out.value=fallbackDraft(f);why.textContent=c?whyPlain(c):'Claude isn’t available right now, so this is a plain verified template.'}btn.disabled=false}
-function copyDraft(){const t=$('#draftOut');t.select();try{navigator.clipboard.writeText(t.value)}catch(e){document.execCommand('copy')}}
+[Phone]`; }
+// The message goes to Swiggy support, so it is always written in English.
+async function doDraft() {
+  const out = $('#draftOut'), btn = $('#draftBtn'), why = $('#draftNote'); btn.disabled = true; out.value = t('Drafting…'); why.textContent = '';
+  const f = draftContext(parseInt($('#flagSel').value, 10));
+  const payload = { period: A.from + ' to ' + A.to, item: f.neutral || f.title, detail: f.why, notes: f.lines || [], orders: f.orders.slice(0, 15), more_orders: Math.max(0, f.orders.length - 15) };
+  const text = await askClaude('draft', payload, 'English');
+  const c = text ? checkText(text, payload) : null;
+  if (c && c.ok) out.value = text; else { out.value = fallbackDraft(f); why.textContent = c ? whyPlain(c) : t('AI isn’t available right now, so this is a plain verified template.'); }
+  btn.disabled = false;
+}
+function copyDraft() { const ta = $('#draftOut'); ta.select(); try { navigator.clipboard.writeText(ta.value); } catch (e) { document.execCommand('copy'); } }
 
-document.querySelectorAll('[data-workspace-tab]').forEach(b=>b.addEventListener('click',()=>{if(!A)return;showTab(b.dataset.workspaceTab);goTo($('.product-tabs'))}));
+document.querySelectorAll('[data-workspace-tab]').forEach(b => b.addEventListener('click', () => { if (!A) return; showTab(b.dataset.workspaceTab); goTo($('.product-tabs')); }));
 showTab('analysis');
-$('#sampleSet')?.addEventListener('change',()=>{if(isSample)$('#sampleBtn').click()});
-$('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
-$('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
+$('#sampleSet')?.addEventListener('change', () => { if (isSample) $('#sampleBtn').click(); });
+$('#swFile').addEventListener('change', e => handleSwiggy(e.target.files[0]));
+$('#zFile').addEventListener('change', e => handleZomato(e.target.files[0]));
 // the Sample menu picks which made-up week to run; changing it re-runs the demo, but never replaces real files
-$('#sampleBtn').addEventListener('click',()=>{currentTab='analysis';const wk=($('#sampleSet')||{}).value||'week1';D=makeSample(wk);A=analyze(D);Z=makeZomatoSample(wk);isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
-['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+$('#sampleBtn').addEventListener('click', () => { currentTab = 'analysis'; const wk = ($('#sampleSet') || {}).value || 'week1'; D = makeSample(wk); A = analyze(D); Z = makeZomatoSample(wk); isSample = true; $('#err').textContent = ''; render(); window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); });
+['fc', 'comm'].forEach(id => $('#' + id).addEventListener('input', e => { const v = parseFloat(e.target.value); if (Number.isFinite(v) && v >= 0 && v < 100) { inp[id] = v; if (A) render(); } }));
+// a new language: show the status lines again and redraw the board (the static page text is handled by i18n.js)
+window.addEventListener('after:lang', () => { refreshStatuses(); if (A) render(); });

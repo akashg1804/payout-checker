@@ -28,27 +28,37 @@
 <div class="notice">Without Supabase configuration, memory stays in this browser. After you configure Supabase and sign in, it syncs across devices. AFTER. stores payout summaries and evidence, never order rows, order IDs, or customer details.</div>
 <div class="footer">The loop: <strong>Payout - Understand - Decide - Test - Learn.</strong></div>
 </main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="/supabase-config.js"></script><script src="/memory-sync.js"></script><script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="/supabase-config.js"></script><script src="/memory-sync.js"></script><script src="i18n.js"></script><script src="i18n-hi.js"></script><script src="i18n-kn.js"></script><script>
 const $=s=>document.querySelector(s);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||'null')||fallback}catch(e){return fallback}};
-const money=x=>'\u20B9'+Number(x||0).toLocaleString('en-IN',{maximumFractionDigits:0});
-const precise=x=>'\u20B9'+Number(x||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
-const period=x=>(x.from||'')+' to '+(x.to||'');
-const date=x=>x?new Date(x).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
-const metricLabels={keptPct:'Kept per \u20B9100',ordersPerWeek:'Orders per week',avgOrderPayout:'Average payout per order',couponOrders:'Coupon orders',couponDiscount:'Coupon cost',couponBreakEvenExtraPercent:'Coupon break-even',couponShare:'Coupon order share',dinnerShare:'Dinner order share',avgDeliveryKm:'Average delivery distance'};
-function metricText(key,value){if(value==null)return 'No data';if(key==='keptPct')return '\u20B9'+Number(value).toFixed(1)+' per \u20B9100';if(key==='couponBreakEvenExtraPercent'||key==='couponShare'||key==='dinnerShare')return Number(value).toFixed(1)+'%';if(key==='ordersPerWeek')return Number(value).toFixed(1)+'/wk';if(key==='avgDeliveryKm')return Number(value).toFixed(1)+' km';if(key==='couponOrders')return String(Math.round(value));return money(value)}
+const LOCALE={English:'en-IN',Hindi:'hi-IN',Kannada:'kn-IN'}[LANG]||'en-IN';
+const money=x=>'₹'+Number(x||0).toLocaleString('en-IN',{maximumFractionDigits:0});
+const precise=x=>'₹'+Number(x||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const period=x=>(x.from||'')+' → '+(x.to||'');
+const date=x=>x?new Date(x).toLocaleDateString(LOCALE,{day:'numeric',month:'short',year:'numeric'}):t('Date not recorded');
+// saved tests keep English names; the screen shows them in the chosen language
+const metricLabels={keptPct:'Kept per ₹100',ordersPerWeek:'Orders per week',avgOrderPayout:'Average payout per order',couponOrders:'Coupon orders',couponDiscount:'Coupon cost',couponBreakEvenExtraPercent:'Coupon break-even',couponShare:'Coupon order share',dinnerShare:'Dinner order share',avgDeliveryKm:'Average delivery distance'};
+function metricText(key,value){if(value==null)return t('No data');if(key==='keptPct')return t('₹{x} per ₹100',{x:Number(value).toFixed(1)});if(key==='couponBreakEvenExtraPercent'||key==='couponShare'||key==='dinnerShare')return Number(value).toFixed(1)+'%';if(key==='ordersPerWeek')return t('{x}/wk',{x:Number(value).toFixed(1)});if(key==='avgDeliveryKm')return t('{x} km',{x:Number(value).toFixed(1)});if(key==='couponOrders')return String(Math.round(value));return money(value)}
 function node(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=String(text);return n}
 function renderProfile(){const p=read('after_profile',{restaurant:'',outlet:'',platform:'Swiggy'});$('#restaurant').value=p.restaurant||'';$('#outlet').value=p.outlet||'';$('#platform').value=p.platform||'Swiggy'}
-$('#profile-form').addEventListener('submit',e=>{e.preventDefault();localStorage.setItem('after_profile',JSON.stringify({restaurant:$('#restaurant').value.trim(),outlet:$('#outlet').value.trim(),platform:$('#platform').value}));$('#profile-status').textContent='Saved on this device.';renderPayouts()});
+$('#profile-form').addEventListener('submit',e=>{e.preventDefault();localStorage.setItem('after_profile',JSON.stringify({restaurant:$('#restaurant').value.trim(),outlet:$('#outlet').value.trim(),platform:$('#platform').value}));$('#profile-status').textContent=t('Saved on this device.');renderPayouts()});
 function testList(){const current=read('after_test',null),past=read('after_tests',[]);return current?[current,...past.filter(x=>x.id!==current.id)]:past}
-function renderTests(){const host=$('#tests');host.replaceChildren();const tests=testList();if(!tests.length){host.append(node('p','empty','No test started yet. Open What to do from a payout, choose a move, and record its target.'));return}
- tests.forEach(t=>{const card=node('article','test-card'),top=node('div','test-top'),left=node('div'),badge=node('span','badge');left.append(node('div','eyebrow',t.outcome?'TEST COMPLETE':'TEST IN PROGRESS'),node('h3','',t.action||'Decision test'));badge.textContent=t.outcome==='worked'?'Target reached':t.outcome==='did-not-work'?'Target missed':t.outcome==='inconclusive'?'Inconclusive':'Waiting for next payout';if(t.outcome==='did-not-work')badge.classList.add('failed');top.append(left,badge);card.append(top);
- card.append(node('p','meta','Started '+date(t.startedOn||t.startedAt)+' · '+(t.baselinePeriod||'No baseline period')+(t.baselineIsDemo?' · made-up demo baseline':'')));
- const target=t.target?((t.target.direction==='atMost'?'At most ':'At least ')+metricText(t.watch,t.target.value)):'No target recorded';
- const grid=node('div','metric-grid');[[metricLabels[t.watch]||t.watch,metricText(t.watch,t.baseline&&t.baseline[t.watch])],['Target',target],['Next period',t.nextPayout?period(t.nextPayout):'Not saved yet'],['Observed',t.nextPayout?metricText(t.watch,t.nextPayout.observed):'Waiting']].forEach(([label,value])=>{const box=node('div','metric-box');box.append(node('span','',label),node('strong','',value));grid.append(box)});card.append(grid);
- if(t.evidence)card.append(node('p','decision','Evidence: '+t.evidence));
- if(!t.outcome)card.append(node('p','fine','Save the next full payout on the demo page to record the comparison and outcome.'));
- const actions=node('div','row-actions'),del=node('button','button ghost danger','Delete test');del.type='button';del.addEventListener('click',()=>deleteTest(t.id));actions.append(del);card.append(actions);host.append(card);
+// what the comparison showed, worded in the chosen language from the numbers saved with the test
+function evidenceText(test){
+  if(test.baselineIsDemo)return t('The starting payout was made-up demo data, so AFTER. did not score the result.');
+  const e=test.evidenceData; if(!e)return test.evidence||'';
+  const target=e.target==null?t('No target was set, so the result is inconclusive.'):t(e.direction==='atMost'?'Target: at most {x}.':'Target: at least {x}.',{x:Number(e.target).toFixed(1)});
+  const show=v=>v==null?t('no data'):Number(v).toFixed(1);
+  return t('Baseline {period}: {label} {before}. Next payout {next}: {label} {after}.',{period:e.baseline,next:e.next,label:t(e.label),before:show(e.before),after:show(e.after)})+' '+target;
+}
+function renderTests(){const host=$('#tests');host.replaceChildren();const tests=testList();if(!tests.length){host.append(node('p','empty',t('No test started yet. Open What to do from a payout, choose a move, and record its target.')));return}
+ tests.forEach(test=>{const card=node('article','test-card'),top=node('div','test-top'),left=node('div'),badge=node('span','badge');left.append(node('div','eyebrow',t(test.outcome?'TEST COMPLETE':'TEST IN PROGRESS')),node('h3','',test.action?t(test.action):t('Decision test')));badge.textContent=t(test.outcome==='worked'?'Target reached':test.outcome==='did-not-work'?'Target missed':test.outcome==='inconclusive'?'Inconclusive':'Waiting for next payout');if(test.outcome==='did-not-work')badge.classList.add('failed');top.append(left,badge);card.append(top);
+ card.append(node('p','meta',t('Started {date}',{date:date(test.startedOn||test.startedAt)})+' · '+(test.baselinePeriod||t('No baseline period'))+(test.baselineIsDemo?' · '+t('made-up demo baseline'):'')));
+ const target=test.target?t(test.target.direction==='atMost'?'At most {x}':'At least {x}',{x:metricText(test.watch,test.target.value)}):t('No target recorded');
+ const grid=node('div','metric-grid');[[t(metricLabels[test.watch]||test.watch),metricText(test.watch,test.baseline&&test.baseline[test.watch])],[t('Target'),target],[t('Next period'),test.nextPayout?period(test.nextPayout):t('Not saved yet')],[t('Observed'),test.nextPayout?metricText(test.watch,test.nextPayout.observed):t('Waiting')]].forEach(([label,value])=>{const box=node('div','metric-box');box.append(node('span','',label),node('strong','',value));grid.append(box)});card.append(grid);
+ if(test.evidence||test.evidenceData)card.append(node('p','decision',t('Evidence: {text}',{text:evidenceText(test)})));
+ if(!test.outcome)card.append(node('p','fine',t('Save the next full payout on the demo page to record the comparison and outcome.')));
+ const actions=node('div','row-actions'),del=node('button','button ghost danger',t('Delete test'));del.type='button';del.addEventListener('click',()=>deleteTest(test.id));actions.append(del);card.append(actions);host.append(card);
  });}
 function normalizeRecord(x){const m=x.metrics||{sales:x.gross,payout:x.kept,keptPer100:x.keptPct,deliveredOrders:x.orders,couponShare:x.couponShare};return {...x,period:x.period||period(x),metrics:m}}
 function renderTrend(){
@@ -56,9 +66,9 @@ function renderTrend(){
   const items=read('after_payouts',[]).map(normalizeRecord).filter(x=>x.metrics&&x.from).sort((a,b)=>String(a.from).localeCompare(String(b.from)));
   sec.hidden=!items.length; if(!items.length)return;
   const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const short=ymd=>{const p=String(ymd).split('-').map(Number);return p.length===3&&p[1]?p[2]+' '+MON[p[1]-1]:String(ymd)};
+  const short=ymd=>{const p=String(ymd).split('-').map(Number);return p.length===3&&p[1]?p[2]+' '+t(MON[p[1]-1]):String(ymd)};
   const demo=items.some(x=>x.isSample);
-  $('#trend-intro').textContent=(items.length<2?'Save a second payout and this page shows one week against the next. ':'Each bar is one saved payout, oldest on the left; the latest is the brightest. ')+(demo?'This includes made-up demo payouts.':'');
+  $('#trend-intro').textContent=(items.length<2?t('Save a second payout and this page shows one week against the next.'):t('Each bar is one saved payout, oldest on the left; the latest is the brightest.'))+(demo?' '+t('This includes made-up demo payouts.'):'');
   const draw=(hostId,sumId,pick,fmt,sumText)=>{
     const host=$(hostId); host.replaceChildren();
     const vals=items.map(pick), max=Math.max(...vals.map(v=>v==null?0:Number(v)),0)||1;
@@ -72,35 +82,38 @@ function renderTrend(){
   };
   draw('#trend-kept','#trend-kept-sum',x=>x.metrics.keptPer100,v=>Number(v).toFixed(1),vals=>{
     const a=vals[0],b=vals[vals.length-1]; if(a==null||b==null)return '';
-    const d=b-a; return 'First saved '+Number(a).toFixed(1)+', latest '+Number(b).toFixed(1)+' per ₹100: '+(d>=0?'+':'')+d.toFixed(1)+' overall.';
+    const diff=b-a; return t('First saved {a}, latest {b} per ₹100: {d} overall.',{a:Number(a).toFixed(1),b:Number(b).toFixed(1),d:(diff>=0?'+':'')+diff.toFixed(1)});
   });
   draw('#trend-orders','#trend-orders-sum',x=>x.metrics.deliveredOrders,v=>String(v),vals=>{
     const a=vals[0],b=vals[vals.length-1]; if(a==null||b==null)return '';
     const top=Math.max(...vals.map(Number)), at=items[vals.findIndex(v=>Number(v)===top)];
-    return 'First saved '+a+' orders, latest '+b+'. Busiest: '+top+' (week of '+short(at.from)+').';
+    return t('First saved {a} orders, latest {b}. Busiest: {top} (week of {when}).',{a,b,top,when:short(at.from)});
   });
 }
-function renderPayouts(){renderTrend();const host=$('#payouts');host.replaceChildren();const items=read('after_payouts',[]).map(normalizeRecord);if(!items.length){host.append(node('p','empty','No payout saved yet. Run the demo and choose Save this payout, or use Save all four demo weeks on the demo page to fill this page in one click.'));return}
- items.forEach((raw,i)=>{const x=raw,prior=items.slice(i+1).find(y=>y.profile?.restaurant===x.profile?.restaurant&&y.profile?.outlet===x.profile?.outlet),m=x.metrics,card=node('article','payout-card'),top=node('div','payout-top'),left=node('div');left.append(node('div','eyebrow',(x.sourcePlatform||'Swiggy')+(x.isSample?' · DEMO DATA':'')),node('h3','',x.period||period(x)),node('p','meta',[x.profile&&x.profile.restaurant,x.profile&&x.profile.outlet].filter(Boolean).join(' · ')||'Restaurant / outlet not set'));top.append(left);const del=node('button','button ghost danger','Delete');del.type='button';del.addEventListener('click',()=>deletePayout(x));top.append(del);card.append(top);
+function renderPayouts(){renderTrend();const host=$('#payouts');host.replaceChildren();const items=read('after_payouts',[]).map(normalizeRecord);if(!items.length){host.append(node('p','empty',t('No payout saved yet. Run the demo and choose Save this payout, or use Save all four demo weeks on the demo page to fill this page in one click.')));return}
+ items.forEach((raw,i)=>{const x=raw,prior=items.slice(i+1).find(y=>y.profile?.restaurant===x.profile?.restaurant&&y.profile?.outlet===x.profile?.outlet),m=x.metrics,card=node('article','payout-card'),top=node('div','payout-top'),left=node('div');left.append(node('div','eyebrow',(x.sourcePlatform||'Swiggy')+(x.isSample?' · '+t('DEMO DATA'):'')),node('h3','',period(x)),node('p','meta',[x.profile&&x.profile.restaurant,x.profile&&x.profile.outlet].filter(Boolean).join(' · ')||t('Restaurant / outlet not set')));top.append(left);const del=node('button','button ghost danger',t('Delete'));del.type='button';del.addEventListener('click',()=>deletePayout(x));top.append(del);card.append(top);
  const delta=prior&&prior.metrics&&m.keptPer100!=null&&prior.metrics.keptPer100!=null?Number(m.keptPer100-prior.metrics.keptPer100):null;
- const grid=node('div','metric-grid');[['Kept per \u20B9100',metricText('keptPct',m.keptPer100)],['Sales',precise(m.sales)],['Payout',precise(m.payout)],['Delivered orders',m.deliveredOrders==null?'No data':m.deliveredOrders],['Orders per week',metricText('ordersPerWeek',m.ordersPerWeek)],['Change vs previous',delta==null?'No comparison':(delta>=0?'+':'')+delta.toFixed(1)+' per \u20B9100'],...(m.zomato?[['Zomato kept / \u20B9100',metricText('keptPct',m.zomato.keptPer100)],['Zomato orders',m.zomato.deliveredOrders],['Zomato / order',precise(m.zomato.perOrder)]]:[])].forEach(([label,value])=>{const box=node('div','metric-box');box.append(node('span','',label),node('strong','',value));grid.append(box)});card.append(grid);
- card.append(node('p','decision','Decision: '+(x.decision||'Not recorded')+(x.saved?' · saved '+date(x.saved):'')));
- if(x.testId){const t=testList().find(y=>y.id===x.testId);if(t)card.append(node('p','fine','Linked test: '+t.action+' · '+(t.outcome||'in progress')))}
- const ev=x.evidence||{},deductions=ev.deductions||m.deductions||[],weeks=m.weeks||[],details=document.createElement('details');details.className='evidence';const summary=node('summary','', 'View computed evidence');details.append(summary);const ul=node('ul','evidence-list');
- deductions.slice(0,8).forEach(b=>ul.append(node('li','',b.label+': '+precise(b.amount)+' ('+Number(b.percent||0).toFixed(1)+'%)')));
- if(m.pricePoints) m.pricePoints.slice(0,4).forEach(p=>ul.append(node('li','',money(p.price)+' price · '+p.orders+' orders · avg kept '+money(p.averagePayout))));
- if(m.delivery)ul.append(node('li','', 'Delivery: '+Number(m.delivery.averageKm).toFixed(1)+' km average, '+Number(m.delivery.overFourKmPercent).toFixed(1)+'% over 4 km'));
- if(weeks.length)ul.append(node('li','', 'Week by week: '+weeks.map(w=>w.orders+(w.partial?'*':'')).join(' / ')+' orders (* partial week)'));
- if(ev.arithmeticChecks)ul.append(node('li','',ev.arithmeticChecks.filter(c=>c.ok).length+' arithmetic checks matched'));
+ const grid=node('div','metric-grid');[[t('Kept per ₹100'),metricText('keptPct',m.keptPer100)],[t('Sales'),precise(m.sales)],[t('Payout'),precise(m.payout)],[t('Delivered orders'),m.deliveredOrders==null?t('No data'):m.deliveredOrders],[t('Orders per week'),metricText('ordersPerWeek',m.ordersPerWeek)],[t('Change vs previous'),delta==null?t('No comparison'):(delta>=0?'+':'')+delta.toFixed(1)+' '+t('per ₹100')],...(m.zomato?[[t('Zomato kept / ₹100'),metricText('keptPct',m.zomato.keptPer100)],[t('Zomato orders'),m.zomato.deliveredOrders],[t('Zomato / order'),precise(m.zomato.perOrder)]]:[])].forEach(([label,value])=>{const box=node('div','metric-box');box.append(node('span','',label),node('strong','',value));grid.append(box)});card.append(grid);
+ const decision=(x.decisionL10n&&x.decisionL10n[LANG])||(x.decision&&t(x.decision));
+ card.append(node('p','decision',t('Decision: {d}',{d:decision||t('Not recorded')})+(x.saved?' · '+t('saved {date}',{date:date(x.saved)}):'')));
+ if(x.testId){const linked=testList().find(y=>y.id===x.testId);if(linked)card.append(node('p','fine',t('Linked test: {a} · {s}',{a:t(linked.action),s:linked.outcome?t(linked.outcome==='worked'?'Target reached':linked.outcome==='did-not-work'?'Target missed':'Inconclusive'):t('in progress')})))}
+ const ev=x.evidence||{},deductions=ev.deductions||m.deductions||[],weeks=m.weeks||[],details=document.createElement('details');details.className='evidence';const summary=node('summary','',t('View computed evidence'));details.append(summary);const ul=node('ul','evidence-list');
+ deductions.slice(0,8).forEach(b=>ul.append(node('li','',t(b.label)+': '+precise(b.amount)+' ('+Number(b.percent||0).toFixed(1)+'%)')));
+ if(m.pricePoints) m.pricePoints.slice(0,4).forEach(p=>ul.append(node('li','',t('{price} price · {n} orders · avg kept {x}',{price:money(p.price),n:p.orders,x:money(p.averagePayout)}))));
+ if(m.delivery)ul.append(node('li','',t('Delivery: {km} km average, {p}% over 4 km',{km:Number(m.delivery.averageKm).toFixed(1),p:Number(m.delivery.overFourKmPercent).toFixed(1)})));
+ if(weeks.length)ul.append(node('li','',t('Week by week: {list} orders (* partial week)',{list:weeks.map(w=>w.orders+(w.partial?'*':'')).join(' / ')})));
+ if(ev.arithmeticChecks)ul.append(node('li','',t('{n} arithmetic checks matched',{n:ev.arithmeticChecks.filter(c=>c.ok).length})));
  details.append(ul);card.append(details);host.append(card);
  });}
-function deletePayout(x){if(!confirm('Delete the saved payout for '+(x.period||period(x))+'?'))return;const items=read('after_payouts',[]).filter(y=>!(y.id===x.id||(!x.id&&y.from===x.from&&y.to===x.to)));localStorage.setItem('after_payouts',JSON.stringify(items));renderPayouts()}
-function deleteTest(id){if(!confirm('Delete this test and its outcome?'))return;const current=read('after_test',null);if(current&&current.id===id)localStorage.removeItem('after_test');localStorage.setItem('after_tests',JSON.stringify(read('after_tests',[]).filter(t=>t.id!==id)));renderTests();renderPayouts()}
-$('#clear').addEventListener('click',()=>{if(!confirm('Clear all AFTER. memory on this device, including business details, payouts, and tests? This cannot be undone.'))return;['after_profile','after_payouts','after_current','after_test','after_tests'].forEach(k=>localStorage.removeItem(k));renderProfile();renderTests();renderPayouts()});
+function deletePayout(x){if(!confirm(t('Delete the saved payout for {period}?',{period:x.period||period(x)})))return;const items=read('after_payouts',[]).filter(y=>!(y.id===x.id||(!x.id&&y.from===x.from&&y.to===x.to)));localStorage.setItem('after_payouts',JSON.stringify(items));renderPayouts()}
+function deleteTest(id){if(!confirm(t('Delete this test and its outcome?')))return;const current=read('after_test',null);if(current&&current.id===id)localStorage.removeItem('after_test');localStorage.setItem('after_tests',JSON.stringify(read('after_tests',[]).filter(y=>y.id!==id)));renderTests();renderPayouts()}
+$('#clear').addEventListener('click',()=>{if(!confirm(t('Clear all AFTER. memory on this device, including business details, payouts, and tests? This cannot be undone.')))return;['after_profile','after_payouts','after_current','after_test','after_tests'].forEach(k=>localStorage.removeItem(k));renderProfile();renderTests();renderPayouts()});
 $('#export').addEventListener('click',()=>{const backup={format:'after-memory-v1',exportedAt:new Date().toISOString(),profile:read('after_profile',{}),payouts:read('after_payouts',[]),activeTest:read('after_test',null),tests:read('after_tests',[])};const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='after-memory-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url)});
 $('#import-button').addEventListener('click',()=>$('#import-file').click());
-$('#import-file').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());if(data.format!=='after-memory-v1'||!Array.isArray(data.payouts)||!Array.isArray(data.tests))throw new Error('This is not an AFTER. memory backup.');if(!confirm('Restore this backup and replace the current AFTER. memory on this device?'))return;localStorage.setItem('after_profile',JSON.stringify(data.profile||{}));localStorage.setItem('after_payouts',JSON.stringify(data.payouts));data.activeTest?localStorage.setItem('after_test',JSON.stringify(data.activeTest)):localStorage.removeItem('after_test');localStorage.setItem('after_tests',JSON.stringify(data.tests));renderProfile();renderTests();renderPayouts()}catch(err){alert(err.message||'Could not read that backup.')}finally{e.target.value=''}});
+$('#import-file').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());if(data.format!=='after-memory-v1'||!Array.isArray(data.payouts)||!Array.isArray(data.tests))throw new Error(t('This is not an AFTER. memory backup.'));if(!confirm(t('Restore this backup and replace the current AFTER. memory on this device?')))return;localStorage.setItem('after_profile',JSON.stringify(data.profile||{}));localStorage.setItem('after_payouts',JSON.stringify(data.payouts));data.activeTest?localStorage.setItem('after_test',JSON.stringify(data.activeTest)):localStorage.removeItem('after_test');localStorage.setItem('after_tests',JSON.stringify(data.tests));renderProfile();renderTests();renderPayouts()}catch(err){alert(err.message||t('Could not read that backup.'))}finally{e.target.value=''}});
 renderProfile();renderTests();renderPayouts();
+// the lists are built from saved data, so a new language is simply a fresh build
+window.addEventListener('after:lang',()=>{renderProfile();renderTests();renderPayouts()});
 </script></body></html>
 
 

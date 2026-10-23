@@ -195,7 +195,7 @@ function analyze(data) {
   });
   const sumNet = sum(rows, 'netPayout');
   if (B['net payout'] != null) {
-    checks.push({ key: 'sumnet', label: 'Order rows add up to the payout summary (\u20B9' + r2(B['net payout']).toFixed(2) + ')', ok: Math.abs(sumNet - B['net payout']) <= 0.1 ? 1 : 0, tot: 1, detail: r2(sumNet - B['net payout']) });
+    checks.push({ key: 'sumnet', label: 'Order rows add up to the payout summary (\u20B9' + r2(B['net payout']).toFixed(2) + ')', ok: Math.abs(sumNet - B['net payout']) <= 0.1 ? 1 : 0, tot: 1, detail: r2(sumNet - B['net payout']), net: r2(B['net payout']) });
   }
   const rates = delivered.filter(r => r.hasRate && r.rate > 0).map(r => r.rate);
   const mr = modal(rates);
@@ -209,23 +209,25 @@ function analyze(data) {
   const repeats = Object.values(groups).filter(g => g.length > 1 && g[0].total > 0);
   const adCheck = { rows: adj.length, repeats: repeats.length };
 
-  // ---- flags (things to raise with Swiggy) ----
+  // ---- flags (things to raise with Swiggy). Each carries `kind` (money or signal), `vars` and `items`, so the screen can word it in any language ----
   const flags = [];
   const used = {};
   delivered.forEach(r => { if (r.coupon && r.share > 0) { (used[r.coupon] = used[r.coupon] || []).push(r); } });
   const couponTotal = Object.values(used).reduce((s, a) => s + sum(a, 'share'), 0);
   if (couponTotal > 0) {
+    const items = Object.keys(used).map(code => { const meta = coupons.find(c => c.code === code); return { code, n: used[code].length, amt: sum(used[code], 'share'), own: meta ? (meta.share >= 100 ? 'all' : meta.share) : null }; });
     const lines = Object.keys(used).map(code => {
       const meta = coupons.find(c => c.code === code);
-      const own = meta ? (meta.share >= 100 ? 'you pay all of it' : 'you pay ' + meta.share + '%') : 'who funds it isn\u2019t stated in the file';
-      return code + ': ' + used[code].length + (used[code].length === 1 ? ' order, ' : ' orders, ') + '\u20B9' + r2(sum(used[code], 'share')).toFixed(2) + ' (' + own + ')';
+      const own = meta ? (meta.share >= 100 ? 'you pay all of it' : 'you pay ' + meta.share + '%') : 'who funds it isn’t stated in the file';
+      return code + ': ' + used[code].length + (used[code].length === 1 ? ' order, ' : ' orders, ') + '₹' + r2(sum(used[code], 'share')).toFixed(2) + ' (' + own + ')';
     });
     flags.push({
-      key: 'coupons', title: 'Coupons took \u20B9' + r2(couponTotal).toFixed(2) + ' from your payout', amount: couponTotal,
-      neutral: 'Coupon discounts totalling \u20B9' + r2(couponTotal).toFixed(2) + ' across ' + Object.values(used).flat().length + ' orders (' + Object.keys(used).join(', ') + '), shown as restaurant-funded in the payout',
+      key: 'coupons', kind: 'money', title: 'Coupons took ₹' + r2(couponTotal).toFixed(2) + ' from your payout', amount: couponTotal,
+      neutral: 'Coupon discounts totalling ₹' + r2(couponTotal).toFixed(2) + ' across ' + Object.values(used).flat().length + ' orders (' + Object.keys(used).join(', ') + '), shown as restaurant-funded in the payout',
       why: (100 * couponTotal / (gross || 1)).toFixed(1) + '% of your sales went to customer coupons that appear in the Discount Summary.',
-      lines, ask: 'Check you meant to run these. If you didn\u2019t switch them on, ask which campaign they belong to.',
-      orders: Object.values(used).flat().map(r => r.id)
+      lines, ask: 'Check you meant to run these. If you didn’t switch them on, ask which campaign they belong to.',
+      orders: Object.values(used).flat().map(r => r.id),
+      vars: { amt: couponTotal, pct: (100 * couponTotal) / (gross || 1), n: Object.values(used).flat().length, codes: Object.keys(used).join(', ') }, items
     });
   }
   const edge = [];
@@ -236,57 +238,91 @@ function analyze(data) {
   if (edge.length) {
     const codes = [...new Set(edge.map(e => e.c.code))].join(', ');
     flags.push({
-      key: 'threshold', title: edge.length + ' coupon ' + (edge.length === 1 ? 'order was' : 'orders were') + ' at or below the coupon\u2019s stated minimum', amount: sum(edge.map(e => e.r), 'share'),
-      neutral: edge.length + ' orders where coupon ' + codes + ' was applied at or below its stated minimum of \u20B9' + edge[0].c.threshold,
-      why: 'The coupon text says \u201Cabove \u20B9' + edge[0].c.threshold + '\u201D, but ' + edge.length + ' orders had an item total of \u20B9' + edge[0].r.item + ' or less (' + codes + ').',
+      key: 'threshold', kind: 'money', title: edge.length + ' coupon ' + (edge.length === 1 ? 'order was' : 'orders were') + ' at or below the coupon’s stated minimum', amount: sum(edge.map(e => e.r), 'share'),
+      neutral: edge.length + ' orders where coupon ' + codes + ' was applied at or below its stated minimum of ₹' + edge[0].c.threshold,
+      why: 'The coupon text says “above ₹' + edge[0].c.threshold + '”, but ' + edge.length + ' orders had an item total of ₹' + edge[0].r.item + ' or less (' + codes + ').',
       lines: ['It may still be valid if packaging counts toward the minimum. This is a question, not a finding.'],
-      ask: 'Ask how the minimum is calculated.', orders: edge.map(e => e.r.id)
+      ask: 'Ask how the minimum is calculated.', orders: edge.map(e => e.r.id),
+      vars: { n: edge.length, th: edge[0].c.threshold, codes, amt: sum(edge.map(e => e.r), 'share') }, items: []
     });
   }
   const cancelled = rows.filter(r => r.canc > 0 || (r.status !== 'delivered' && r.totalFees > 0));
   if (cancelled.length) {
     const amt = sum(cancelled, 'canc') + sum(cancelled, 'gstFee');
     flags.push({
-      key: 'cancel', title: 'Cancellation charges of \u20B9' + r2(amt).toFixed(2), amount: amt,
-      neutral: 'Cancellation charges of \u20B9' + r2(amt).toFixed(2) + ' (including GST) on ' + cancelled.length + ' order' + (cancelled.length > 1 ? 's' : '') + (cancelled[0].cancelledBy ? ' marked as cancelled by ' + cancelled[0].cancelledBy.toLowerCase() : ''),
+      key: 'cancel', kind: 'money', title: 'Cancellation charges of ₹' + r2(amt).toFixed(2), amount: amt,
+      neutral: 'Cancellation charges of ₹' + r2(amt).toFixed(2) + ' (including GST) on ' + cancelled.length + ' order' + (cancelled.length > 1 ? 's' : '') + (cancelled[0].cancelledBy ? ' marked as cancelled by ' + cancelled[0].cancelledBy.toLowerCase() : ''),
       why: cancelled.length + ' order' + (cancelled.length > 1 ? 's were' : ' was') + ' cancelled' + (cancelled[0].cancelledBy ? ' (marked as cancelled by ' + cancelled[0].cancelledBy.toLowerCase() + ')' : '') + ' and charged to you, including GST.',
-      lines: [], ask: 'Confirm the cancellation was yours. If it wasn\u2019t, ask for the reason code.', orders: cancelled.map(r => r.id)
+      lines: [], ask: 'Confirm the cancellation was yours. If it wasn’t, ask for the reason code.', orders: cancelled.map(r => r.id),
+      vars: { amt, n: cancelled.length, by: cancelled[0].cancelledBy ? cancelled[0].cancelledBy.toLowerCase() : '' }, items: []
     });
   }
   if (repeats.length) {
     const extra = repeats.reduce((s, g) => s + g[0].total * (g.length - 1), 0);
     const g0 = repeats[0][0];
     flags.push({
-      key: 'dupe', title: repeats.length === 1 ? 'The same ad charge appears ' + repeats[0].length + ' times' : repeats.length + ' ad charges appear more than once', amount: extra,
-      neutral: 'An ad charge of \u20B9' + r2(g0.total).toFixed(2) + (g0.start ? ' for the campaign dated ' + g0.start + ' to ' + g0.end : '') + ' listed ' + repeats[0].length + ' times' + (repeats.length > 1 ? ' (and ' + (repeats.length - 1) + ' more repeated charge' + (repeats.length > 2 ? 's' : '') + ')' : ''),
-      why: 'Same type, campaign dates and amount, listed more than once. The extra copies add up to \u20B9' + r2(extra).toFixed(2) + '.',
-      lines: repeats.slice(0, 5).map(g => g[0].type + ' \u20B9' + r2(g[0].total).toFixed(2) + ' (' + g.length + ' times' + (g.map(x => x.invoice).filter(Boolean).length ? '; invoices ' + g.map(x => x.invoice).filter(Boolean).join(', ') : '') + ')'),
-      ask: 'Check if you really ran this campaign twice. If not, ask Swiggy why it was billed more than once.', orders: []
+      key: 'dupe', kind: 'money', title: repeats.length === 1 ? 'The same ad charge appears ' + repeats[0].length + ' times' : repeats.length + ' ad charges appear more than once', amount: extra,
+      neutral: 'An ad charge of ₹' + r2(g0.total).toFixed(2) + (g0.start ? ' for the campaign dated ' + g0.start + ' to ' + g0.end : '') + ' listed ' + repeats[0].length + ' times' + (repeats.length > 1 ? ' (and ' + (repeats.length - 1) + ' more repeated charge' + (repeats.length > 2 ? 's' : '') + ')' : ''),
+      why: 'Same type, campaign dates and amount, listed more than once. The extra copies add up to ₹' + r2(extra).toFixed(2) + '.',
+      lines: repeats.slice(0, 5).map(g => g[0].type + ' ₹' + r2(g[0].total).toFixed(2) + ' (' + g.length + ' times' + (g.map(x => x.invoice).filter(Boolean).length ? '; invoices ' + g.map(x => x.invoice).filter(Boolean).join(', ') : '') + ')'),
+      ask: 'Check if you really ran this campaign twice. If not, ask Swiggy why it was billed more than once.', orders: [],
+      vars: { count: repeats.length, times: repeats[0].length, extra, each: g0.total },
+      items: repeats.slice(0, 5).map(g => ({ type: g[0].type, total: g[0].total, times: g.length, invoices: g.map(x => x.invoice).filter(Boolean) }))
     });
   }
   if (bad.length) {
     const ids = [...new Set(bad.map(b => b.row.id))];
     flags.push({
-      key: 'mismatch', title: ids.length + ' order' + (ids.length > 1 ? 's' : '') + ' where a figure doesn\u2019t recompute', amount: bad.filter(b => b.check === 'comm').reduce((s, b) => s + Math.abs(b.diff), 0),
-      neutral: ids.length + ' order' + (ids.length > 1 ? 's' : '') + ' where a figure does not match the statement\u2019s own formula',
-      why: 'These rows disagree with the statement\u2019s own formulas. That means \u201Cunexplained\u201D, and is a question to ask, not a finding.',
-      lines: bad.slice(0, 8).map(b => '\u2026' + b.row.id.slice(-6) + ': ' + b.label + ' (off by \u20B9' + Math.abs(b.diff).toFixed(2) + ')'),
-      ask: 'Ask for the calculation basis for these orders.', orders: ids
+      key: 'mismatch', kind: 'money', title: ids.length + ' order' + (ids.length > 1 ? 's' : '') + ' where a figure doesn’t recompute', amount: bad.filter(b => b.check === 'comm').reduce((s, b) => s + Math.abs(b.diff), 0),
+      neutral: ids.length + ' order' + (ids.length > 1 ? 's' : '') + ' where a figure does not match the statement’s own formula',
+      why: 'These rows disagree with the statement’s own formulas. That means “unexplained”, and is a question to ask, not a finding.',
+      lines: bad.slice(0, 8).map(b => '…' + b.row.id.slice(-6) + ': ' + b.label + ' (off by ₹' + Math.abs(b.diff).toFixed(2) + ')'),
+      ask: 'Ask for the calculation basis for these orders.', orders: ids,
+      vars: { n: ids.length }, items: bad.slice(0, 8).map(b => ({ id6: b.row.id.slice(-6), label: b.label, diff: Math.abs(b.diff) }))
     });
   }
   if (rateOut.length) {
     flags.push({
-      key: 'rate', title: rateOut.length + ' order' + (rateOut.length > 1 ? 's' : '') + ' at a different commission rate', amount: 0,
+      key: 'rate', kind: 'money', title: rateOut.length + ' order' + (rateOut.length > 1 ? 's' : '') + ' at a different commission rate', amount: 0,
       neutral: rateOut.length + ' order' + (rateOut.length > 1 ? 's' : '') + ' charged at a commission rate different from the usual ' + mr.value + '%',
       why: 'Most orders are at ' + mr.value + '%, but these differ.',
-      lines: rateOut.slice(0, 8).map(r => '\u2026' + r.id.slice(-6) + ': ' + r.rate + '%'), ask: 'Ask why the rate differs.', orders: rateOut.map(r => r.id)
+      lines: rateOut.slice(0, 8).map(r => '…' + r.id.slice(-6) + ': ' + r.rate + '%'), ask: 'Ask why the rate differs.', orders: rateOut.map(r => r.id),
+      vars: { n: rateOut.length, usual: mr.value }, items: rateOut.slice(0, 8).map(r => ({ id6: r.id.slice(-6), rate: r.rate }))
     });
   }
   if (adsOther > 0) {
     flags.push({
-      key: 'ads', title: 'Ads and other charges of \u20B9' + r2(adsOther).toFixed(2), amount: adsOther,
-      neutral: 'Ads and other charges of \u20B9' + r2(adsOther).toFixed(2) + ' in the payout summary',
-      why: 'The payout summary lists ad spend or other adjustments.', lines: [], ask: 'Match this to campaigns you started.', orders: []
+      key: 'ads', kind: 'money', title: 'Ads and other charges of ₹' + r2(adsOther).toFixed(2), amount: adsOther,
+      neutral: 'Ads and other charges of ₹' + r2(adsOther).toFixed(2) + ' in the payout summary',
+      why: 'The payout summary lists ad spend or other adjustments.', lines: [], ask: 'Match this to campaigns you started.', orders: [],
+      vars: { amt: adsOther }, items: []
+    });
+  }
+  // smaller fees on top of commission and payment collection (cancellation charges have their own flag)
+  const feeDefs = [['longDist', 'Long-distance charges'], ['pocket', 'Pocket Hero fees'], ['one', 'Swiggy One fees'], ['call', 'Call-centre charges'], ['bolt', 'Bolt fees'], ['sponsored', 'Delivery fee sponsored']];
+  const feeItems = feeDefs.map(([k, label]) => ({ key: k, label, amt: sum(rows, k), n: rows.filter(r => r[k] > 0).length })).filter(x => x.amt > 0);
+  const feeTotal = feeItems.reduce((s, x) => s + x.amt, 0);
+  const feeRows = rows.filter(r => feeDefs.some(([k]) => r[k] > 0));
+  if (feeTotal > 0) {
+    flags.push({
+      key: 'fees', kind: 'money', title: 'Smaller Swiggy fees of ₹' + r2(feeTotal).toFixed(2) + ' on ' + feeRows.length + ' orders', amount: feeTotal,
+      neutral: 'Smaller Swiggy fees (' + feeItems.map(x => x.label.toLowerCase()).join(', ') + ') totalling ₹' + r2(feeTotal).toFixed(2) + ' on ' + feeRows.length + ' orders',
+      why: 'Fees on top of commission and payment collection. They are charged on some orders only.',
+      lines: feeItems.map(x => x.label + ': ₹' + r2(x.amt).toFixed(2) + ' (' + x.n + (x.n === 1 ? ' order' : ' orders') + ')'),
+      ask: 'Check you opted into each one. If you didn’t, ask what it is for.', orders: feeRows.map(r => r.id),
+      vars: { amt: feeTotal, n: feeRows.length }, items: feeItems
+    });
+  }
+  // kitchen timing signals ("MFR" is the statement's food-ready marking); a signal, not money
+  const mfrBad = delivered.filter(r => r.mfrAcc === 'no'), mfrKnown = delivered.filter(r => r.mfrAcc === 'yes' || r.mfrAcc === 'no').length;
+  const mfrNoPress = delivered.filter(r => r.mfrPress === 'no'), pressKnown = delivered.filter(r => r.mfrPress === 'yes' || r.mfrPress === 'no').length;
+  if (mfrBad.length || mfrNoPress.length) {
+    flags.push({
+      key: 'mfr', kind: 'signal', title: 'Food-ready timing is worth checking', amount: 0,
+      neutral: 'Food-ready was marked not accurate on ' + mfrBad.length + ' of ' + mfrKnown + ' orders and not pressed on ' + mfrNoPress.length + ' of ' + pressKnown,
+      why: 'The statement marks some orders as “not accurate” or “not pressed” for food-ready.',
+      lines: [], ask: 'Check how your kitchen presses “food ready”, and ask Swiggy what the marking is used for.', orders: [...new Set([...mfrBad, ...mfrNoPress].map(r => r.id))],
+      vars: { bad: mfrBad.length, known: mfrKnown, notPressed: mfrNoPress.length, pressKnown }, items: []
     });
   }
   flags.sort((a, b) => b.amount - a.amount);
@@ -329,6 +365,15 @@ function analyze(data) {
   ins.mfr = { notAccurate: delivered.filter(r => r.mfrAcc === 'no').length, known: delivered.filter(r => r.mfrAcc === 'yes' || r.mfrAcc === 'no').length,
     notPressed: delivered.filter(r => r.mfrPress === 'no').length, pressKnown: delivered.filter(r => r.mfrPress === 'yes' || r.mfrPress === 'no').length };
   ins.cancelled = { n: rows.length - delivered.length, cost: r2(sum(cancelled, 'canc') + sum(cancelled, 'gstFee')) };
+  // orders by day of week (Sun = 0 ... Sat = 6), by order value and by delivery distance
+  ins.dow = [0, 1, 2, 3, 4, 5, 6].map(dw => Object.assign({ dow: dw }, stat(stamped.filter(x => x.w.dow === dw).map(x => x.r))));
+  const bucketed = (list, defs, pick) => defs.map(b => Object.assign({ key: b.key, min: b.min == null ? null : b.min, max: b.max == null ? null : b.max },
+    stat(list.filter(r => (b.min == null || pick(r) >= b.min) && (b.max == null || pick(r) < b.max)))));
+  ins.value = bucketed(delivered, [{ key: 'v1', max: 200 }, { key: 'v2', min: 200, max: 300 }, { key: 'v3', min: 300, max: 400 }, { key: 'v4', min: 400 }], r => r.item);
+  const withKm = delivered.filter(r => r.km > 0);
+  ins.distBuckets = bucketed(withKm, [{ key: 'd1', max: 2 }, { key: 'd2', min: 2, max: 4 }, { key: 'd3', min: 4, max: 6 }, { key: 'd4', min: 6 }], r => r.km);
+  ins.dist4 = { over: stat(withKm.filter(r => r.km > 4)), under: stat(withKm.filter(r => r.km <= 4)) };
+  ins.fees = feeItems;
 
   return {
     n: rows.length, nDelivered: delivered.length, nCancelled: rows.length - delivered.length,
@@ -430,49 +475,57 @@ function periodDays(A) {
   if (!A.from || !A.to) return 7;
   return Math.max(1, Math.round((Date.parse(A.to + 'T00:00:00Z') - Date.parse(A.from + 'T00:00:00Z')) / 86400000) + 1);
 }
-function advise(A, Z, d, inp) {
+// ---------- wording: English templates with {name} holes. Hindi and Kannada come from I18N_DICT (public/i18n.js), keyed by the English template ----------
+function M(tpl, vars, lang) {
+  const dict = (typeof I18N_DICT !== 'undefined' && lang && lang !== 'English' && I18N_DICT[lang]) || null;
+  const s = (dict && dict[tpl]) || tpl;
+  return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : s;
+}
+function advise(A, Z, d, inp, lang) {
+  const m = (tpl, vars) => M(tpl, vars, lang);
   const days = periodDays(A), weeks = days / 7;
   const perWeek = n => Math.max(1, Math.round(n / weeks));
   const W = perWeek(A.nDelivered);
   const out = {};
   out.lead = {
-    head: 'You keep ₹' + p1(A.keptPct) + ' of every ₹100 sold on Swiggy.',
-    basis: Z && d.z ? 'Zomato estimate: about ₹' + p0(d.z.keptPct) + ' of every ₹100 at the ' + inp.comm + '% commission you entered, before gateway fees and TDS.' : ''
+    head: m('You keep ₹{kept} of every ₹100 sold on Swiggy.', { kept: p1(A.keptPct) }),
+    basis: Z && d.z ? m('Zomato estimate: about ₹{z} of every ₹100 at the {comm}% commission you entered, before gateway fees and TDS.', { z: p0(d.z.keptPct), comm: inp.comm }) : ''
   };
 
   // Decision 1: Swiggy coupons
   const sw = d.swCoupon, cpw = sw.n ? perWeek(sw.n) : 0;
   const d1 = { rule: '' };
-  d1.basis = 'Based on ' + A.nDelivered + ' delivered orders over ' + days + ' days' + (sw.n ? ', ' + sw.n + ' of them with a coupon' : '') + '.' + (sw.n && sw.n < 20 ? ' That is few orders, so treat this as a first guess.' : '');
+  d1.basis = m(sw.n ? 'Based on {n} delivered orders over {days} days, {cn} of them with a coupon.' : 'Based on {n} delivered orders over {days} days.', { n: A.nDelivered, days, cn: sw.n })
+    + (sw.n && sw.n < 20 ? ' ' + m('That is few orders, so treat this as a first guess.') : '');
   if (!sw.n) {
     d1.rule = 'none';
-    d1.head = 'No coupons ran on Swiggy in this statement.';
-    d1.do = 'Nothing to change.';
-    d1.measure = 'If you start a coupon, note your orders now: about ' + W + ' a week.';
-    d1.stop = 'Stop a new coupon if weekly orders are not above ' + W + ' after 2 weeks.';
+    d1.head = m('No coupons ran on Swiggy in this statement.');
+    d1.do = m('Nothing to change.');
+    d1.measure = m('If you start a coupon, note your orders now: about {W} a week.', { W });
+    d1.stop = m('Stop a new coupon if weekly orders are not above {W} after 2 weeks.', { W });
   } else if (sw.f == null) {
     d1.rule = 'loss';
-    d1.head = 'At ' + inp.fc + '% food cost, the coupon orders don’t cover their ingredients.';
-    d1.do = 'Pause the coupon for 2 weeks.';
-    d1.measure = 'Count Swiggy orders each week and compare with about ' + W + ' a week now.';
-    d1.stop = 'If your real food cost is below ' + inp.fc + '%, change it above first: the answer may change.';
+    d1.head = m('At {fc}% food cost, the coupon orders don’t cover their ingredients.', { fc: inp.fc });
+    d1.do = m('Pause the coupon for 2 weeks.');
+    d1.measure = m('Count Swiggy orders each week and compare with about {W} a week now.', { W });
+    d1.stop = m('If your real food cost is below {fc}%, change it above first: the answer may change.', { fc: inp.fc });
   } else {
     const F = p0(100 * sw.f), T = Math.max(1, Math.round(sw.f * sw.n / weeks));
-    d1.head = 'Your Swiggy coupons only pay off if at least ' + F + '% of those orders were extra.';
-    d1.measure = 'Count Swiggy orders each week and compare with about ' + W + ' a week now (' + cpw + ' a week used a coupon).';
+    d1.head = m('Your Swiggy coupons only pay off if at least {F}% of those orders were extra.', { F });
+    d1.measure = m('Count Swiggy orders each week and compare with about {W} a week now ({cpw} a week used a coupon).', { W, cpw });
     if (sw.f >= 0.5) {
       d1.rule = 'pause';
-      d1.do = 'Pause the coupon for 2 weeks. Needing ' + F + '% extra orders is a lot to expect.';
-      d1.stop = 'Bring the coupon back if orders fall by more than ' + T + ' a week. That would mean it was bringing extra orders.';
+      d1.do = m('Pause the coupon for 2 weeks. Needing {F}% extra orders is a lot to expect.', { F });
+      d1.stop = m('Bring the coupon back if orders fall by more than {T} a week. That would mean it was bringing extra orders.', { T });
     } else if (sw.f >= 0.25) {
       d1.rule = 'halve';
-      d1.do = 'Halve the discount for 2 weeks rather than stopping it.';
-      d1.stop = 'Go back to the full discount if orders fall by more than ' + T + ' a week.';
+      d1.do = m('Halve the discount for 2 weeks rather than stopping it.');
+      d1.stop = m('Go back to the full discount if orders fall by more than {T} a week.', { T });
     } else {
       d1.rule = 'keep';
-      d1.do = 'Keep the coupon. It pays off if only ' + F + '% of coupon orders were extra.';
-      d1.measure = 'Check each week that coupon orders stay near ' + cpw + ' out of about ' + W + '.';
-      d1.stop = 'Pause it if coupon orders grow but total orders don’t. Then it is going to people who would order anyway.';
+      d1.do = m('Keep the coupon. It pays off if only {F}% of coupon orders were extra.', { F });
+      d1.measure = m('Check each week that coupon orders stay near {cpw} out of about {W}.', { cpw, W });
+      d1.stop = m('Pause it if coupon orders grow but total orders don’t. Then it is going to people who would order anyway.');
     }
   }
   out.d1 = d1;
@@ -480,30 +533,33 @@ function advise(A, Z, d, inp) {
   // Decision 2: Swiggy or Zomato (Zomato is always an estimate)
   const d2 = { rule: 'nozomato' };
   if (!Z || !d.z || d.swPer == null || d.z.per == null) {
-    d2.head = 'Which app leaves you more per order?';
-    d2.do = 'Add the Zomato business report to compare the two apps.';
+    d2.head = m('Which app leaves you more per order?');
+    d2.do = m('Add the Zomato business report to compare the two apps.');
     d2.measure = ''; d2.stop = ''; d2.basis = '';
   } else {
     const diff = d.z.per - d.swPer, gap = rs0(Math.abs(diff));
     const cs = d.z.cStar != null && d.z.cStar > 0 ? p0(d.z.cStar) : null;
-    d2.basis = 'Swiggy: ' + A.nDelivered + ' orders from your statement. Zomato: ' + Z.delivered + ' orders, take-home estimated at ' + inp.comm + '% commission and ' + inp.fc + '% food cost.';
+    const v = { gap, cs, comm: inp.comm };
+    d2.basis = m('Swiggy: {n} orders from your statement. Zomato: {zn} orders, take-home estimated at {comm}% commission and {fc}% food cost.', { n: A.nDelivered, zn: Z.delivered, comm: inp.comm, fc: inp.fc });
     // The commission is the owner's guess, so the advice is conditional on it and says so.
-    d2.measure = 'Ask your Zomato account manager for your exact commission, put it in the box above, and read this again.';
+    d2.measure = m('Ask your Zomato account manager for your exact commission, put it in the box above, and read this again.');
     d2.head = diff >= 0
-      ? 'Zomato leaves you about ' + gap + ' more per order than Swiggy (estimate)' + (cs ? ', unless its commission is above ' + cs + '%.' : '.')
-      : 'At a ' + inp.comm + '% commission, Zomato leaves you about ' + gap + ' less per order than Swiggy (estimate).';
+      ? m(cs ? 'Zomato leaves you about {gap} more per order than Swiggy (estimate), unless its commission is above {cs}%.' : 'Zomato leaves you about {gap} more per order than Swiggy (estimate).', v)
+      : m('At a {comm}% commission, Zomato leaves you about {gap} less per order than Swiggy (estimate).', v);
     if (Math.abs(diff) < 10) {
       d2.rule = 'same';
-      d2.do = 'The two apps leave about the same per order. Ask your Zomato account manager for your exact commission before moving anything.';
-      d2.stop = cs ? 'If your commission is above ' + cs + '%, Swiggy leaves more.' : 'Check again once you know your real commission.';
+      d2.do = m('The two apps leave about the same per order. Ask your Zomato account manager for your exact commission before moving anything.');
+      d2.stop = m(cs ? 'If your commission is above {cs}%, Swiggy leaves more.' : 'Check again once you know your real commission.', v);
     } else if (diff > 0) {
       d2.rule = 'zomato';
-      d2.do = (cs ? 'If your real Zomato commission is below ' + cs + '%, put' : 'Put') + ' next month’s offer budget on Zomato rather than Swiggy. At the ' + inp.comm + '% you entered, Zomato leaves about ' + gap + ' more per order (estimate).';
-      d2.stop = cs ? 'Keep it on Swiggy if your real commission is ' + cs + '% or more. Then Swiggy leaves more.' : 'Switch back if next month’s files show Swiggy leaving more.';
+      d2.do = m(cs ? 'If your real Zomato commission is below {cs}%, put next month’s offer budget on Zomato rather than Swiggy. At the {comm}% you entered, Zomato leaves about {gap} more per order (estimate).'
+        : 'Put next month’s offer budget on Zomato rather than Swiggy. At the {comm}% you entered, Zomato leaves about {gap} more per order (estimate).', v);
+      d2.stop = m(cs ? 'Keep it on Swiggy if your real commission is {cs}% or more. Then Swiggy leaves more.' : 'Switch back if next month’s files show Swiggy leaving more.', v);
     } else {
       d2.rule = 'swiggy';
-      d2.do = (cs ? 'If your real Zomato commission is above ' + cs + '%, put' : 'Put') + ' next month’s offer budget on Swiggy rather than Zomato. At the ' + inp.comm + '% you entered, Zomato leaves about ' + gap + ' less per order (estimate).';
-      d2.stop = cs ? 'Look again if your real commission is ' + cs + '% or less. Then Zomato leaves more.' : 'Look again if next month’s files show Zomato leaving more.';
+      d2.do = m(cs ? 'If your real Zomato commission is above {cs}%, put next month’s offer budget on Swiggy rather than Zomato. At the {comm}% you entered, Zomato leaves about {gap} less per order (estimate).'
+        : 'Put next month’s offer budget on Swiggy rather than Zomato. At the {comm}% you entered, Zomato leaves about {gap} less per order (estimate).', v);
+      d2.stop = m(cs ? 'Look again if your real commission is {cs}% or less. Then Zomato leaves more.' : 'Look again if next month’s files show Zomato leaving more.', v);
     }
   }
   out.d2 = d2;
@@ -512,29 +568,29 @@ function advise(A, Z, d, inp) {
   const d3 = { rule: 'notimes' };
   const parts = A.ins.parts.slice().sort((a, b) => b.n - a.n);
   const zLost = Z && Z.lostSales > 0 && Z.offlineHrs > 0 && Z.lostSales >= 0.02 * Z.sales;
-  const short = l => l.replace(/\s*\(.*\)$/, '');
+  const slot = lb => m(lb).replace(/\s*\(.*\)$/, '').toLowerCase();
   if (parts.length) {
     const late = parts.filter(p => ['dinner', 'night', 'late'].includes(p.key)).reduce((s, p) => s + p.share, 0);
-    d3.head = late >= 60 ? 'Most Swiggy orders come after 7 pm.' : 'Your busiest time on Swiggy is ' + short(parts[0].label).toLowerCase() + '.';
-  } else d3.head = 'Orders by time of day';
-  d3.basis = 'Based on ' + A.nDelivered + ' Swiggy orders over ' + days + ' days' + (Z ? ' and Zomato’s daypart counts.' : '.');
+    d3.head = late >= 60 ? m('Most Swiggy orders come after 7 pm.') : m('Your busiest time on Swiggy is {slot}.', { slot: slot(parts[0].label) });
+  } else d3.head = m('Orders by time of day');
+  d3.basis = m(Z ? 'Based on {n} Swiggy orders over {days} days and Zomato’s daypart counts.' : 'Based on {n} Swiggy orders over {days} days.', { n: A.nDelivered, days });
   if (zLost) {
     d3.rule = 'offline';
-    d3.do = 'Cut Zomato offline time. The report shows ' + p0(Z.offlineHrs) + ' hours offline and about ' + rs0(Z.lostSales) + ' in lost sales.';
-    d3.measure = 'Check offline hours and lost sales in next month’s report.';
-    d3.stop = 'Done when offline hours are close to zero during your busiest time, ' + (parts.length ? short(parts[0].label).toLowerCase() : 'dinner') + '.';
+    d3.do = m('Cut Zomato offline time. The report shows {h} hours offline and about {lost} in lost sales.', { h: p0(Z.offlineHrs), lost: rs0(Z.lostSales) });
+    d3.measure = m('Check offline hours and lost sales in next month’s report.');
+    d3.stop = m('Done when offline hours are close to zero during your busiest time, {slot}.', { slot: parts.length ? slot(parts[0].label) : m('dinner') });
   } else if (parts.length >= 2) {
     d3.rule = 'slot';
     const a = parts[0], b = parts[1], K = perWeek(b.n);
-    d3.do = 'Be online and fully stocked for ' + a.label + ', which brings ' + p0(a.share) + '% of Swiggy orders. Try one offer in ' + b.label + ' (' + p0(b.share) + '%) for 2 weeks.';
-    d3.measure = 'Count ' + short(b.label).toLowerCase() + ' orders each week: about ' + K + ' a week now.';
-    d3.stop = 'Stop the offer if ' + short(b.label).toLowerCase() + ' is not above ' + K + ' orders a week after 2 weeks.';
+    d3.do = m('Be online and fully stocked for {a}, which brings {pa}% of Swiggy orders. Try one offer in {b} ({pb}%) for 2 weeks.', { a: m(a.label), pa: p0(a.share), b: m(b.label), pb: p0(b.share) });
+    d3.measure = m('Count {slot} orders each week: about {K} a week now.', { slot: slot(b.label), K });
+    d3.stop = m('Stop the offer if {slot} is not above {K} orders a week after 2 weeks.', { slot: slot(b.label), K });
   } else if (parts.length === 1) {
     d3.rule = 'oneslot';
-    d3.do = 'All timed orders came in ' + parts[0].label + '. Be online and fully stocked then.';
+    d3.do = m('All timed orders came in {a}. Be online and fully stocked then.', { a: m(parts[0].label) });
     d3.measure = ''; d3.stop = '';
   } else {
-    d3.do = 'Order times are missing from this statement, so there is no time-of-day advice.';
+    d3.do = m('Order times are missing from this statement, so there is no time-of-day advice.');
     d3.measure = ''; d3.stop = '';
   }
   out.d3 = d3;
@@ -599,7 +655,7 @@ function checkText(text, payload) {
 // ---------- week by week ----------
 // Complete weeks only: a partial week has fewer days, so it would look like a fall just because it is short.
 // "Fell" means the latest complete week is half or less of the busiest complete week before it.
-function ordersTrend(A) {
+function ordersTrend(A, lang) {
   const full = ((A.ins && A.ins.weeks) || []).filter(w => !w.partial);
   if (full.length < 2) return null;
   const last = full[full.length - 1], before = full.slice(0, -1);
@@ -607,9 +663,9 @@ function ordersTrend(A) {
   if (!(peak.n > 0) || last.n * 2 > peak.n) return null;
   const total = full.reduce((s, w) => s + w.n, 0);
   return {
-    from: peak.n, to: last.n, fromWeek: peak.start, toWeek: last.start,
-    line: 'Orders fell from ' + peak.n + ' a week to ' + last.n + '. Worth asking what changed.',
-    basis: 'Complete weeks only: ' + total + ' orders across ' + full.length + ' weeks.' + (total < 20 ? ' That is few orders, so treat this as something to check, not a conclusion.' : '')
+    from: peak.n, to: last.n, fromWeek: peak.start, toWeek: last.start, total, weeks: full.length,
+    line: M('Orders fell from {from} a week to {to}. Worth asking what changed.', { from: peak.n, to: last.n }, lang),
+    basis: M('Complete weeks only: {total} orders across {weeks} weeks.', { total, weeks: full.length }, lang) + (total < 20 ? ' ' + M('That is few orders, so treat this as something to check, not a conclusion.', null, lang) : '')
   };
 }
 
@@ -620,3 +676,63 @@ function ordersTrend(A) {
 // The extra orders add C. The rest, (1 - f) of the orders, would have come anyway at full price, so the discount on them is lost.
 // At the break-even share D / (C + D) it is exactly 0.
 function couponEarn(sw, f) { return f * sw.C - (1 - f) * sw.cost; }
+
+// ---------- insights: the facts behind each chart, all computed from the statement (and the Zomato report if added) ----------
+// Nothing here says why something happened. A comparison needs at least MIN_N orders on each side, or it is left out.
+const MIN_N = 3;
+function insightFacts(A, Z) {
+  const I = A.ins, f = {};
+  const pickMax = (list, key) => list.reduce((m, x) => (x[key] > m[key] ? x : m), list[0]);
+  const pickMin = (list, key) => list.reduce((m, x) => (x[key] < m[key] ? x : m), list[0]);
+  // time of day
+  const slots = I.parts, enoughSlots = slots.filter(p => p.n >= MIN_N);
+  f.time = slots.length ? {
+    total: slots.reduce((s, p) => s + p.n, 0), busiest: pickMax(slots, 'n'),
+    hi: enoughSlots.length >= 2 ? pickMax(enoughSlots, 'avgKept') : null, lo: enoughSlots.length >= 2 ? pickMin(enoughSlots, 'avgKept') : null
+  } : null;
+  // day of week
+  const dowTotal = I.dow.reduce((s, x) => s + x.n, 0);
+  f.dow = dowTotal ? { total: dowTotal, busiest: pickMax(I.dow, 'n'), weekendShare: I.weekend.share } : null;
+  // order value
+  const vb = I.value.filter(b => b.n >= MIN_N);
+  f.value = vb.length >= 2 ? { hi: pickMax(vb, 'avgKept'), lo: pickMin(vb, 'avgKept') } : null;
+  // coupons: the same statement, orders with a coupon against orders without
+  f.coupon = I.coupon.with.n ? { with: I.coupon.with, without: I.coupon.without.n ? I.coupon.without : null, share: I.coupon.share, codes: I.coupon.codes } : null;
+  // distance
+  const dist = I.distance;
+  f.dist = dist ? { n: dist.n, avg: dist.avg, max: dist.max, over4Share: dist.over4, over: I.dist4.over, under: I.dist4.under, compare: I.dist4.over.n >= MIN_N && I.dist4.under.n >= MIN_N } : null;
+  // who orders and how they pay
+  const payTotal = Object.values(I.pay).reduce((s, n) => s + n, 0);
+  f.who = {
+    members: I.members.known ? { yes: I.members.yes, known: I.members.known, share: (100 * I.members.yes) / I.members.known } : null,
+    pay: Object.keys(I.pay).map(k => ({ key: k, n: I.pay[k], share: payTotal ? (100 * I.pay[k]) / payTotal : 0 })).sort((a, b) => b.n - a.n)
+  };
+  // operations
+  f.ops = { cancelled: { n: I.cancelled.n, of: A.n, rate: A.n ? (100 * I.cancelled.n) / A.n : 0, cost: I.cancelled.cost }, mfr: I.mfr };
+  // Zomato
+  if (Z) {
+    const steps = [['impressions', Z.impressions], ['menuOpens', Z.menuOpens], ['cartBuilds', Z.cartBuilds], ['placed', Z.placed], ['delivered', Z.delivered]].filter(([, v]) => v > 0);
+    const usersTotal = Z.newU + Z.repeatU + Z.lapsedU, partsTotal = Object.values(Z.parts).reduce((s, v) => s + v, 0);
+    f.zomato = {
+      funnel: steps.map(([key, v], i) => ({ key, v, rate: i && steps[i - 1][1] > 0 ? (100 * v) / steps[i - 1][1] : null })),
+      cartLost: Z.cartBuilds > 0 ? Math.max(0, Z.cartBuilds - Z.placed) : null,
+      cartLostPct: Z.cartBuilds > 0 ? (100 * Math.max(0, Z.cartBuilds - Z.placed)) / Z.cartBuilds : null,
+      users: { newU: Z.newU, repeatU: Z.repeatU, lapsedU: Z.lapsedU, total: usersTotal, repeatShare: usersTotal ? (100 * Z.repeatU) / usersTotal : null },
+      ads: { spend: Z.adsSpend, sales: Z.adsSales },
+      rating: Z.rating, ratedOrders: Z.ratedOrders, offlineHrs: Z.offlineHrs, lostSales: Z.lostSales,
+      parts: Z.parts, partsTotal
+    };
+  } else f.zomato = null;
+  return f;
+}
+
+// Flags that come from the shape of the data rather than from a statement line: a fall in orders, an abandoned cart, offline hours, a high cancel rate.
+function extraFlags(A, Z, lang) {
+  const out = [], f = insightFacts(A, Z), trend = ordersTrend(A, lang);
+  if (trend) out.push({ key: 'trend', kind: 'signal', amount: 0, title: trend.line, why: trend.basis, ask: 'Look at what changed in those weeks: menu, prices, coupons, offline hours, delivery area.', vars: { from: trend.from, to: trend.to, total: trend.total, weeks: trend.weeks } });
+  if (f.ops.cancelled.n > 0 && f.ops.cancelled.rate >= 10) out.push({ key: 'cancelrate', kind: 'signal', amount: 0, title: M('{n} of {of} orders were cancelled', { n: f.ops.cancelled.n, of: f.ops.cancelled.of }, lang), why: '', ask: 'Check the reasons for the cancellations with Swiggy.', vars: { n: f.ops.cancelled.n, of: f.ops.cancelled.of, pct: f.ops.cancelled.rate } });
+  if (f.zomato && f.zomato.cartLostPct != null && f.zomato.cartLostPct >= 50) out.push({ key: 'carts', kind: 'signal', amount: 0, title: 'Most Zomato carts did not become orders', why: '', ask: 'The report does not say why. Look at prices, delivery fee and delivery time on Zomato.', vars: { pct: f.zomato.cartLostPct, lost: f.zomato.cartLost, carts: Z.cartBuilds } });
+  if (f.zomato && f.zomato.offlineHrs > 0 && f.zomato.lostSales > 0) out.push({ key: 'offline', kind: 'signal', amount: f.zomato.lostSales, title: 'Zomato shows offline time and lost sales', why: '', ask: 'Check when the outlet went offline and whether it was planned.', vars: { hrs: f.zomato.offlineHrs, lost: f.zomato.lostSales } });
+  if (f.zomato && f.zomato.rating != null && f.zomato.rating > 0 && f.zomato.rating < 4) out.push({ key: 'rating', kind: 'signal', amount: 0, title: 'Zomato rating is below 4', why: '', ask: 'Read the recent low ratings for a common theme.', vars: { rating: f.zomato.rating, rated: f.zomato.ratedOrders } });
+  return out;
+}
