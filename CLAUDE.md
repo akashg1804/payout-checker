@@ -5,7 +5,7 @@ AFTER. ("from payout statement to decision") is for small restaurant and cloud-k
 
 ## Pages
 - `/` = `public/index.html`: a one-line redirect to `/demo`. The old story page is gone.
-- `/demo` = `public/demo.html`: the working app. It opens with the demo already run. Loads `core.js` and `app.js`. Tabs: Analysis, Flags, Insights (the weekly chart, price points and distance are under Insights). Made-up demo data (a Sample menu of four weeks) or the owner's own files. Has the break-even meter, a demo guide, an Ask box, and **Save this payout**.
+- `/demo` = `public/demo.html`: the working app. It opens with the demo already run. Loads `core.js` and `app.js`. Tabs: Analysis, Flags, Insights (the orders chart, weekly for long statements and daily for a one-week payout, price points and distance are under Insights). Made-up demo data (a Sample menu of four separate one-week payouts, Mon to Sun, that tell one story: 20% coupon, coupon halved, coupons off, small coupon back; "Save all four demo weeks" fills the Memory page) or the owner's own files. Has the break-even meter, a demo guide, an Ask box, and **Save this payout**.
 - `/actions` = `public/actions.html`: what to do next, built from `localStorage.after_current`.
 - `/insights` = `public/insights.html`: payout memory, built from `localStorage.after_payouts`.
 - `/app` and `/app.html` redirect to `/` (`vercel.json`). The old `app.html` is deleted; `memory.js`, `style.css` and `fonts/` belonged to it and are not loaded by any current page.
@@ -40,10 +40,10 @@ AFTER. ("from payout statement to decision") is for small restaurant and cloud-k
 Sheets: `Payout Breakup` (summary), `Order Level` (header row has "Order ID"; 54 columns), `Growth Investment Other Charges` (ads and adjustments, can be empty), `Discount Summary` (coupon rules and totals). Commission is a % of the bill after discounts. GST on Swiggy's fees is 18% of the fees. Column labels can change, so match headers by name, not position, and stop with a clear message if the totals don't reconcile.
 
 ## Next steps (in priority order)
-1. Make the four demo weeks differ in order counts, not only in money (they all have 14 orders, so the memory demo shows the same kept per ₹100 each week); show the falling-orders line in the demo.
+1. Test the Supabase email sign-in end to end, and check its redirect URL list includes the live site.
 2. A second real statement to test parsing on another outlet.
 3. Period-aware comparisons in `/insights`, and Zomato in the memory.
-4. Test the Supabase email sign-in end to end, and check its redirect URL list includes the live site.
+4. Period-aware comparisons beyond kept per ₹100 on `/insights`; Zomato in the memory.
 
 ## Style
 Plain language for non-technical owners. Don't add dependencies without a reason.

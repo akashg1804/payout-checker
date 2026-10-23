@@ -10,7 +10,7 @@ Live: https://payout-checker.vercel.app
 | Page | What it does |
 |---|---|
 | `/` (`public/index.html`) | Opens the workspace: a one-line redirect to `/demo`. |
-| `/demo` (`public/demo.html`) | The working app. **Run the demo** uses made-up data; **Use it instead** reads your own Swiggy and Zomato files. Shows what you kept per ₹100, where the rest went, three decision cards (coupons, platforms, timing), what to ask Swiggy with a drafted message, and a **Save this payout** button. |
+| `/demo` (`public/demo.html`) | The working app. **Run the demo** uses made-up data (four separate one-week payouts you can pick from, and **Save all four demo weeks** fills the Memory page so it can show graphs and week-against-week changes); **Use it instead** reads your own Swiggy and Zomato files. Shows what you kept per ₹100, where the rest went, three decision cards (coupons, platforms, timing), what to ask Swiggy with a drafted message, and a **Save this payout** button. |
 | `/actions` (`public/actions.html`) | What to do: six moves (coupons, platforms, timing, fees, measure, learn). Mark ?I started this? with a date and choose a measure; AFTER. compares the next full payout period with the saved baseline. |
 | `/insights` (`public/insights.html`) | Payout memory: the payouts you saved, newest first, with kept per ₹100, orders, the change since the previous one, and the decision you made. |
 

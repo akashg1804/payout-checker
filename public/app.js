@@ -41,16 +41,24 @@ const Z_ERR = {
 const errText = (map, x, dflt) => (map[x && x.code] ? map[x.code](x.detail) : dflt) + ' Nothing was calculated from it.';
 
 // ---------- made-up sample data (clearly labelled) ----------
-function makeSample(variant = 'base') {
-  const items = [249, 289, 149, 349, 199, 449, 179, 299, 249, 399, 149, 229, 329, 189];
+// Four weekly payouts (Mon to Sun, no overlap) that tell one story, so the graphs and the memory comparison have something to show:
+//   week1: a 20% coupon on most orders      week2: the coupon halved to 10%, orders hold up
+//   week3: coupons off, orders drop         week4: a small 10% coupon is back, orders recover
+const SAMPLE_WEEKS = {
+  week1: { start: '2026-08-03', code: 'WELCOME20', rate: 0.20, items: [249, 289, 149, 349, 199, 449, 179, 299, 249, 399, 149, 229], days: [0, 0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6], coupons: [0, 2, 3, 5, 6, 8, 10, 11], cancelled: true, mismatch: true, ads: true },
+  week2: { start: '2026-08-10', code: 'WELCOME10', rate: 0.10, items: [249, 289, 179, 349, 199, 449, 179, 299, 249, 399, 229, 329, 189], days: [0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 6], coupons: [0, 3, 6, 9, 11, 12], cancelled: false },
+  week3: { start: '2026-08-17', code: '', rate: 0, items: [249, 349, 299, 199, 449, 249, 399, 329], days: [0, 1, 2, 3, 4, 5, 5, 6], coupons: [], cancelled: true },
+  week4: { start: '2026-08-24', code: 'WELCOME10', rate: 0.10, items: [249, 289, 349, 199, 449, 299, 249, 399, 229, 329, 189], days: [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6], coupons: [1, 5, 8, 10], cancelled: false }
+};
+const SAMPLE_ORDER = ['week1', 'week2', 'week3', 'week4'];
+function makeSample(variant = 'week1') {
+  const W = SAMPLE_WEEKS[variant] || SAMPLE_WEEKS.week1;
   const hours = [20, 21, 0, 22, 13, 19, 23, 20, 1, 21, 12, 22, 19, 20];
-  // 14 delivered orders on Aug 4-17: 6 in the partial first week, 7 in the complete week of Aug 10, 1 on Aug 17
-  const days = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
   const kms = [3.1, 4.7, 2.8, 5.2, 3.6, 4.1, 6.3, 3.3, 4.9, 2.9, 3.8, 4.4, 5.6, 3.0];
   const rows = [];
-  const mk = (i, item, pack, coupon, rate, commOverride, status, cancelledBy) => {
+  const mk = (i, dayOff, item, pack, coupon, rate, commOverride, status, cancelledBy) => {
     const delivered = status === 'delivered';
-    const share = delivered && coupon ? Math.min(Math.round(item * 0.2 * 100) / 100, 50) : 0;
+    const share = delivered && coupon ? Math.min(Math.round(item * W.rate * 100) / 100, 50) : 0;
     const net = delivered ? item + pack - share : 0;
     const gst = delivered ? net * 0.05 : 0;
     const comm = delivered ? (commOverride != null ? commOverride : (net * rate) / 100) : 0;
@@ -63,37 +71,34 @@ function makeSample(variant = 'base') {
     const payable = net + gst;
     const hh = String(hours[(i - 1) % hours.length]).padStart(2, '0');
     return {
-      id: '99000000' + String(i).padStart(7, '0'), date: '2026-08-' + String(days[(i - 1) % days.length]).padStart(2, '0') + ' ' + hh + ':10:00', status, cancelledBy: cancelledBy || '', coupon: delivered ? coupon : '',
+      id: '99000000' + String(i).padStart(7, '0'), date: addDays(W.start, dayOff) + ' ' + hh + ':10:00', status, cancelledBy: cancelledBy || '', coupon: delivered ? coupon : '',
       item: delivered ? item : 0, pack: delivered ? pack : 0, share, net, gst, paid: payable, payable, base: net, rate, comm, longDist: 0, pocket: 0, one: 0, pcc, canc, call: 0, sponsored: 0, bolt: 0,
       gstFee, totalFees, complaint: 0, gstDed: gst, tcs: 0, tds, taxes, netPayout: payable - totalFees - taxes, hasNet: true, hasRate: true, hasPayable: true,
       km: delivered ? kms[(i - 1) % kms.length] : 0, swOne: i % 5 === 0 ? 'no' : 'yes', pay: i % 7 === 0 ? 'cash' : 'upiintent', mfrAcc: i % 3 === 0 ? 'no' : 'yes', mfrPress: 'no'
     };
   };
-  items.forEach((it, i) => {
-    const coupon = (i % 3 === 0 || it === 149) ? 'WELCOME20' : '';
-    rows.push(mk(i + 1, it, 10, coupon, 24, i === 5 ? ((it + 10) * 0.26) : null, 'delivered'));
+  W.items.forEach((it, i) => {
+    const coupon = W.coupons.includes(i) ? W.code : '';
+    rows.push(mk(i + 1, W.days[i], it, 10, coupon, 24, W.mismatch && i === 5 ? (it + 10) * 0.26 : null, 'delivered'));
   });
-  rows.push(mk(items.length + 1, 0, 0, '', 24, null, 'cancelled', 'RESTAURANT'));
-  if (variant !== 'base') {
-    const factor = variant === 'week2' ? 1.22 : variant === 'week3' ? 0.78 : variant === 'week4' ? 1.05 : 1;
-    const shift = ({week1:0,week2:7,week3:14,week4:21}[variant] || 0);
-    rows.forEach(r => { if (shift) r.date = new Date(Date.parse(r.date.replace(' ','T')+'Z') + shift*86400000).toISOString().slice(0,19).replace('T',' '); } );
-    rows.forEach(r => { ['item','pack','share','net','gst','paid','payable','base','comm','pcc','canc','gstFee','totalFees','tds','taxes','netPayout'].forEach(k => { if (typeof r[k] === 'number') r[k] = Math.round(r[k] * factor * 100) / 100; }); });
-  }
+  if (W.cancelled) rows.push(mk(W.items.length + 1, 3, 0, 0, '', 24, null, 'cancelled', 'RESTAURANT'));
   const breakup = { 'net payout': rows.reduce((s, r) => s + r.netPayout, 0), 'total customer paid': rows.reduce((s, r) => s + r.paid, 0) };
-  const coupons = [{ code: 'WELCOME20', share: 100, orders: 0, discount: 0, threshold: 149, text: 'Use code WELCOME20 & get 20% off on orders above \u20B9149. Maximum discount: \u20B950.' }];
-  const adjustments = [
-    { kind: 'ad', type: 'Ads investment', start: '2026-08-05', end: '2026-08-12', total: 690, invoice: 'SAMPLE-INV-1', remarks: '' },
-    { kind: 'ad', type: 'Ads investment', start: '2026-08-05', end: '2026-08-12', total: 690, invoice: 'SAMPLE-INV-2', remarks: '' }
-  ];
+  const coupons = W.code ? [{ code: W.code, share: 100, orders: 0, discount: 0, threshold: 149, text: 'Use code ' + W.code + ' & get ' + Math.round(W.rate * 100) + '% off on orders above ₹149. Maximum discount: ₹50.' }] : [];
+  const adjustments = W.ads ? [
+    { kind: 'ad', type: 'Ads investment', start: '2026-08-04', end: '2026-08-10', total: 690, invoice: 'SAMPLE-INV-1', remarks: '' },
+    { kind: 'ad', type: 'Ads investment', start: '2026-08-04', end: '2026-08-10', total: 690, invoice: 'SAMPLE-INV-2', remarks: '' }
+  ] : [];
   return { rows, breakup, coupons, adjustments, platform: 'Swiggy' };
 }
-function makeZomatoSample(variant = 'base') {
-  const out = { platform: 'Zomato', delivered: 60, sales: 17200, discount: 910, placed: 63, offerOrders: 30, offerSales: 8900, swapped: false,
-    adsSales: 14800, adsSpend: 340, impressions: 11000, adsImpressions: 8800, menuOpens: 800, cartBuilds: 150, newU: 30, repeatU: 26, lapsedU: 7,
-    parts: { breakfast: 1, lunch: 12, snacks: 4, dinner: 26, late: 20 }, rating: 4.4, ratedOrders: 9, offlineHrs: 90, lostSales: 400 };
-  if (variant !== 'base') { const factor = variant === 'week2' ? 1.22 : variant === 'week3' ? 0.78 : variant === 'week4' ? 1.05 : 1; ['sales','discount','offerSales','adsSales','adsSpend','lostSales'].forEach(k => { out[k] = Math.round(out[k] * factor); }); ['delivered','placed','offerOrders','impressions','adsImpressions','menuOpens','cartBuilds','newU','repeatU','lapsedU'].forEach(k => { out[k] = Math.max(1, Math.round(out[k] * factor)); }); }
-  return out;
+// A made-up Zomato report for the same week. Each week is scaled from week 1, to follow the Swiggy volume.
+function makeZomatoSample(variant = 'week1') {
+  const f = { week1: 1, week2: 1.1, week3: 0.65, week4: 0.9 }[variant] || 1;
+  const sc = (v, min = 0) => Math.max(min, Math.round(v * f));
+  return {
+    platform: 'Zomato', delivered: sc(14, 1), sales: sc(3900), discount: sc(210), placed: sc(15, 1), offerOrders: sc(7), offerSales: sc(2050), swapped: false,
+    adsSales: sc(3300), adsSpend: sc(80), impressions: sc(2600), adsImpressions: sc(2100), menuOpens: sc(190), cartBuilds: sc(36), newU: sc(7), repeatU: sc(6), lapsedU: sc(2),
+    parts: { breakfast: 0, lunch: sc(3), snacks: sc(1), dinner: sc(6), late: sc(4) }, rating: 4.4, ratedOrders: sc(2), offlineHrs: sc(21), lostSales: sc(95)
+  };
 }
 
 // ---------- loading files ----------
@@ -166,10 +171,43 @@ function weekLabel(w) {
   const [, m1, d1] = a.split('-').map(Number), [, m2, d2] = b.split('-').map(Number);
   return m1 === m2 ? (d1 === d2 ? d1 + ' ' + MONTHS[m1 - 1] : d1 + '–' + d2 + ' ' + MONTHS[m1 - 1]) : d1 + ' ' + MONTHS[m1 - 1] + ' – ' + d2 + ' ' + MONTHS[m2 - 1];
 }
+// A payout that covers a single week has one weekly bar, so show the days instead: delivered orders per day, counted from the order rows.
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function daysSection() {
+  const counts = {};
+  ((D && D.rows) || []).filter(r => r.status === 'delivered' && r.date).forEach(r => { const k = r.date.slice(0, 10); counts[k] = (counts[k] || 0) + 1; });
+  const days = [];
+  for (let d = A.from; d && d <= A.to && days.length < 14; d = addDays(d, 1)) days.push({ ymd: d, n: counts[d] || 0 });
+  if (!days.length) return null;
+  const max = Math.max(...days.map(x => x.n)) || 1, best = days.reduce((m, x) => (x.n > m.n ? x : m), days[0]);
+  const label = x => DAY_NAMES[new Date(x.ymd + 'T00:00:00Z').getUTCDay()] + ' ' + Number(x.ymd.slice(8));
+  const chart = el('div', { class: 'mini-chart', 'aria-hidden': 'true' }, days.map(x => el('div', { class: 'chart-col' },
+    el('strong', {}, String(x.n)), el('i', { style: 'height:' + Math.max(8, Math.round((90 * x.n) / max)) + 'px' }), el('span', {}, label(x)))));
+  return el('section', { class: 'weeks-section', id: 'weeks' },
+    el('div', { class: 'eyebrow' }, 'ORDERS · DAY BY DAY'),
+    el('h2', {}, 'How many orders each day?'),
+    el('p', { class: 'weeks-sub' }, 'Delivered orders per day. This payout covers one week (' + weekLabel(A.ins.weeks[0]) + '), so the days are shown instead of weeks.'),
+    chart,
+    note('Busiest day: ' + label(best) + ' with ' + plural(best.n, 'order', 'orders') + '. Save more payouts and the Memory page shows week against week.'));
+}
+// Demo only: save the four made-up weeks in order, so the Memory page has a history to compare and graph.
+function saveDemoHistory(button, status) {
+  const keep = { D, A, Z, ADV, isSample };
+  try {
+    SAMPLE_ORDER.forEach(v => {
+      D = makeSample(v); A = analyze(D); Z = makeZomatoSample(v); isSample = true;
+      ADV = advise(A, Z, decide(A, Z, inp), inp);
+      savePayout({}, true);
+    });
+  } finally { D = keep.D; A = keep.A; Z = keep.Z; ADV = keep.ADV; isSample = keep.isSample; }
+  button.textContent = 'Saved four demo weeks'; button.disabled = true;
+  if (status) status.textContent = 'Four made-up weeks are saved. Open Payout memory to see them side by side.';
+}
 // Orders per week, partial weeks marked, and the falling-orders line when the latest complete week is half or less of an earlier one.
 function weeksSection(trend) {
   const W = (A.ins && A.ins.weeks) || [];
   if (!W.length || !A.from) return null;
+  if (W.length === 1 && !W[0].partial) { const daily = daysSection(); if (daily) return daily; }
   const max = Math.max(...W.map(w => w.n)) || 1;
   // a bar per week; the table below has the same numbers, so the bars are decoration for screen readers
   const chart = el('div', { class: 'mini-chart', 'aria-hidden': 'true' }, W.map(w => el('div', { class: 'chart-col' + (w.partial ? ' part' : '') },
@@ -319,8 +357,8 @@ function outcomeFor(test, record) {
   localStorage.setItem('after_test',JSON.stringify(test));
   return true;
 }
-function savePayout(button) {
-  const d=decide(A,Z,inp),test=JSON.parse(localStorage.getItem('after_test')||'null'),period=A.from+' to '+A.to;
+function savePayout(button, skipTest) {
+  const d=decide(A,Z,inp),test=skipTest?null:JSON.parse(localStorage.getItem('after_test')||'null'),period=A.from+' to '+A.to;
   const record={id:Date.now(),saved:new Date().toISOString(),from:A.from,to:A.to,period,sourcePlatform:'Swiggy',comparisonPlatform:Z?'Zomato estimate':null,
     profile:savedProfile(),isSample,metrics:metricSnapshot(A,d),inputAssumptions:{foodCostPercent:inp.fc,zomatoCommissionPercent:inp.comm},
     decision:test&&!test.outcome?test.action:(ADV.d1.do||ADV.d1.head),decisionDetails:{coupon:ADV.d1.do,platform:ADV.d2.do,timing:ADV.d3.do},
@@ -371,7 +409,8 @@ function render(){
   const copyStatus=el('p',{class:'copy-status',role:'status'});
   const copyBtn=el('button',{class:'button ghost',type:'button',onclick:()=>copySummary(copyStatus)},'Copy a summary');
   const saveBtn=el('button',{class:'button',type:'button',onclick:e=>savePayout(e.currentTarget)},'Save this payout');
-  root.append(el('section',{class:'memory-section'},el('div',{class:'memory-copy'},el('div',{class:'eyebrow'},'THE MEMORY LOOP'),el('h2',{},'The next payout should answer what happened last time.'),el('p',{},'Save this result. On the next run, the prototype can compare the period and decision in this browser. No order rows are stored.')),el('div',{class:'memory-actions'},copyBtn,saveBtn,copyStatus,el('a',{class:'button ghost',href:'/insights.html'},'Open payout memory →'))));
+  const demoHistoryBtn=isSample?el('button',{class:'button ghost',type:'button',onclick:e=>saveDemoHistory(e.currentTarget,copyStatus)},'Save all four demo weeks'):null;
+  root.append(el('section',{class:'memory-section'},el('div',{class:'memory-copy'},el('div',{class:'eyebrow'},'THE MEMORY LOOP'),el('h2',{},'The next payout should answer what happened last time.'),el('p',{},'Save this result. On the next run, the prototype can compare the period and decision in this browser. No order rows are stored.')),el('div',{class:'memory-actions'},copyBtn,saveBtn,demoHistoryBtn,copyStatus,el('a',{class:'button ghost',href:'/insights.html'},'Open payout memory →'))));
   const flagList=A.flags.map((f,i)=>el('article',{class:'flag'},el('h4',{},f.title),f.amount>0?el('strong',{},inr(f.amount)):null,el('p',{},f.why),f.lines.length?el('ul',{},f.lines.map(l=>el('li',{},l))):null,el('p',{},el('b',{},'Ask: '),f.ask),el('button',{class:'button ghost',type:'button',onclick:()=>{$('#flagSel').value=String(i);$('#draftBox').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'center'})}},'Draft message')));
   const ck=el('ul',{class:'checks'});A.checks.forEach(c=>ck.append(el('li',{},el('span',{class:'tick '+(c.ok===c.tot?'ok':'no')},c.ok===c.tot?'Matches':'Differs'),el('span',{},(c.tot>1?c.ok+' of '+c.tot+' orders: ':'')+c.label))));
   const flagOpts=A.flags.length?A.flags.map((f,i)=>el('option',{value:String(i)},f.title)):[el('option',{value:'-1'},'General question about this payout')];
@@ -439,7 +478,7 @@ $('#sampleSet')?.addEventListener('change',()=>{if(isSample)$('#sampleBtn').clic
 $('#swFile').addEventListener('change',e=>handleSwiggy(e.target.files[0]));
 $('#zFile').addEventListener('change',e=>handleZomato(e.target.files[0]));
 // the Sample menu picks which made-up week to run; changing it re-runs the demo, but never replaces real files
-$('#sampleBtn').addEventListener('click',()=>{currentTab='analysis';D=makeSample(($('#sampleSet')||{}).value||'base');A=analyze(D);Z=makeZomatoSample();isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
+$('#sampleBtn').addEventListener('click',()=>{currentTab='analysis';const wk=($('#sampleSet')||{}).value||'week1';D=makeSample(wk);A=analyze(D);Z=makeZomatoSample(wk);isSample=true;$('#err').textContent='';render();window.scrollTo({top:0,behavior:reduceMotion()?'auto':'smooth'})});
 ['fc','comm'].forEach(id=>$('#'+id).addEventListener('input',e=>{const v=parseFloat(e.target.value);if(Number.isFinite(v)&&v>=0&&v<100){inp[id]=v;if(A)render()}}));
 
 
